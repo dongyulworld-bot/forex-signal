@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --text-muted: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Custom visual utilities for Premium Deep Tech theme */
+
+.glass-card {
+  background: rgba(10, 15, 30, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(34, 211, 238, 0.25);
+  box-shadow: 0 12px 40px 0 rgba(34, 211, 238, 0.08);
+}
+
+.btn-glow-cyan {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-glow-cyan:hover {
+  box-shadow: 0 0 25px rgba(34, 211, 238, 0.5);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.btn-glow-emerald {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-glow-emerald:hover {
+  box-shadow: 0 0 25px rgba(52, 211, 153, 0.5);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+

@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  GLOBAL_SALES_HEAD
+  REGIONAL_MANAGER
+  BRANCH_MANAGER
+  TEAM_LEADER
+  LOCAL_AGENT
+}
+
+model Agent {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role
+  parentId  String?
+  parent    Agent?   @relation("AgentHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Agent[]  @relation("AgentHierarchy")
+  users     User[]   @relation("AgentClients")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  name              String
+  password          String?
+  agentId           String?
+  agent             Agent?            @relation("AgentClients", fields: [agentId], references: [id], onDelete: SetNull)
+  chartAnalyses     ChartAnalysis[]
+  analysisHistories AnalysisHistory[]
+  mt5Syncs          Mt5Sync[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model ChartAnalysis {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl         String
+  trend            String
+  planAScenario    String
+  planAProbability Int
+  planBScenario    String
+  planBProbability Int
+  rawResponse      String?
+  createdAt        DateTime @default(now())
+}
+
+model AnalysisHistory {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl         String
+  market           String   // e.g. "BTC/USDT"
+  trend            String   // "BULLISH" | "BEARISH" | "NEUTRAL"
+  planAScenario    String
+  planAProbability Int
+  planAEntryPrice  String
+  planBScenario    String
+  planBProbability Int
+  planBEntryPrice  String
+  status           String   @default("COMPLETED") // "COMPLETED" | "PENDING"
+  resultJson       String?  // Store full AI result JSON
+  createdAt        DateTime @default(now())
+}
+
+
+model Mt5Sync {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mt5Login      String   @unique
+  tradingVolume Float    @default(0.0)
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  syncedAt      DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
