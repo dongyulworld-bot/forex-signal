@@ -1,18 +1,17 @@
 'use client';
 
-import React from 'react';
-import dynamic from 'next/dynamic';
+import React, { useState, useEffect } from 'react';
 import { Activity, Target, TrendingUp, Calendar, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-
-// Dynamically import recharts to avoid SSR issues
-const AreaChart = dynamic(() => import('recharts').then(m => m.AreaChart), { ssr: false });
-const Area = dynamic(() => import('recharts').then(m => m.Area), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then(m => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then(m => m.YAxis), { ssr: false });
-const CartesianGrid = dynamic(() => import('recharts').then(m => m.CartesianGrid), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false });
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
 
 interface HistoryItem {
   id: string;
@@ -35,6 +34,12 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ initialHistories }: DashboardClientProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const sortedHistories = [...initialHistories].reverse(); // oldest first for chart
 
   const chartData = sortedHistories.map((h) => {
@@ -105,7 +110,11 @@ export default function DashboardClient({ initialHistories }: DashboardClientPro
         {/* Area Chart */}
         <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 shadow-lg">
           <h3 className="text-lg font-bold text-white mb-6">스캔 트렌드 분석 (Plan A vs Plan B)</h3>
-          {chartData.length > 0 ? (
+          {!mounted ? (
+            <div className="h-64 flex items-center justify-center border border-slate-800 bg-slate-950/20 rounded-xl">
+              <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : chartData.length > 0 ? (
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

@@ -76,9 +76,9 @@ export default function Sidebar({ user }: SidebarProps) {
             <nav className="space-y-1">
               {menuItems.map((item) => {
                 // /dashboard should only be active when exactly on /dashboard
-                const isActive = item.href === '/dashboard'
-                  ? pathname === '/dashboard'
-                  : pathname.startsWith(item.href);
+                const isActive = pathname
+                  ? (item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href))
+                  : false;
                 const IconComponent = item.icon;
                 return (
                   <Link
@@ -132,9 +132,9 @@ export default function Sidebar({ user }: SidebarProps) {
             <div className="flex flex-col h-full justify-between">
               <nav className="space-y-1">
                   {menuItems.map((item) => {
-                    const isActive = item.href === '/dashboard'
-                      ? pathname === '/dashboard'
-                      : pathname.startsWith(item.href);
+                    const isActive = pathname
+                      ? (item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href))
+                      : false;
                     const IconComponent = item.icon;
                   return (
                     <Link
