@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { dbService } from '@/lib/db';
 import { verifySessionToken } from '@/lib/auth';
 import YahooFinance from 'yahoo-finance2';
+import { isOandaConfigured, fetchOandaCandles } from '@/lib/oanda';
 
 export const runtime = 'nodejs';
 
@@ -28,7 +29,7 @@ const SYMBOL_MAP: Record<string, string> = {
   'OANDA:XAGUSD':    'SI=F',
   'OANDA:BTCUSD':    'BTC-USD',
   'OANDA:NAS100USD': 'NQ=F',
-  'OANDA:HK50':      '^HSI',
+  'OANDA:HK33HKD':   '^HSI',
 };
 
 // ──────────────────────────────────────────────
@@ -43,7 +44,7 @@ const PRICE_DECIMALS: Record<string, number> = {
   'OANDA:XAGUSD':    3,
   'OANDA:BTCUSD':    1,
   'OANDA:NAS100USD': 1,
-  'OANDA:HK50':      0,
+  'OANDA:HK33HKD':   0,
 };
 
 // ──────────────────────────────────────────────
@@ -203,65 +204,89 @@ export async function POST(request: Request) {
       );
     }
 
-    const { yfInterval, daysToFetch } = resolveInterval(interval);
-
-    const period1Date = new Date();
-    period1Date.setDate(period1Date.getDate() - daysToFetch);
-
-    const yahooFinance = new YahooFinance();
-
     let quotes: Quote[] = [];
     let quotes5m: Quote[] = [];
     let quotes30m: Quote[] = [];
     let quotes1h: Quote[] = [];
     let quotes1d: Quote[] = [];
 
-    try {
-      // Fetch main quotes and other timeframes in parallel
-      const [chartRes, res5m, res30m, res1h, res1d] = await Promise.all([
-        yahooFinance.chart(yfSymbol, {
-          period1: period1Date.toISOString(),
-          interval: yfInterval
-        }),
-        fetchTimeframeQuotes(yahooFinance, yfSymbol, '5m'),
-        fetchTimeframeQuotes(yahooFinance, yfSymbol, '30m'),
-        fetchTimeframeQuotes(yahooFinance, yfSymbol, '60m'),
-        fetchTimeframeQuotes(yahooFinance, yfSymbol, '1d'),
-      ]);
+    const oandaActive = isOandaConfigured();
 
-      const rawCount = chartRes.quotes?.length ?? 0;
-      const isCommodityOrFuture = yfSymbol.endsWith('=F') || yfSymbol.startsWith('^');
-      quotes = (chartRes.quotes || [])
-        .filter((q: { open: number | null; high: number | null; low: number | null; close: number | null; volume?: number | null }) => {
-          if (q.open == null || q.high == null || q.low == null || q.close == null) {
-            return false;
-          }
-          // Only filter flat candles for commodities/futures, as FX 1m candles are often flat
-          if (isCommodityOrFuture && q.open === q.close && q.high === q.low) {
-            return false;
-          }
-          const bodyMax = Math.max(q.open, q.close);
-          const bodyMin = Math.min(q.open, q.close);
-          const upperWick = (q.high - bodyMax) / bodyMax;
-          const lowerWick = (bodyMin - q.low) / bodyMin;
-          if (upperWick > 0.05 || lowerWick > 0.05) {
-            return false;
-          }
-          return true;
-        });
+    if (oandaActive) {
+      try {
+        console.log(`[OANDA API Active] Fetching data for market=${market} interval=${interval}`);
+        const [resMain, res5m, res30m, res1h, res1d] = await Promise.all([
+          fetchOandaCandles(market, interval, 150),
+          fetchOandaCandles(market, '5m', 150).catch(() => []),
+          fetchOandaCandles(market, '30m', 150).catch(() => []),
+          fetchOandaCandles(market, '1h', 150).catch(() => []),
+          fetchOandaCandles(market, '1d', 150).catch(() => []),
+        ]);
+        quotes = resMain;
+        quotes5m = res5m;
+        quotes30m = res30m;
+        quotes1h = res1h;
+        quotes1d = res1d;
+        console.log(`[OANDA API Success] Fetched main quotes count=${quotes.length}`);
+      } catch (err) {
+        console.error('[OANDA API Fetch Error] Failed, falling back to Yahoo Finance:', err);
+      }
+    }
 
-      quotes5m = res5m;
-      quotes30m = res30m;
-      quotes1h = res1h;
-      quotes1d = res1d;
+    // Fallback to Yahoo Finance if quotes are still empty
+    if (!quotes.length) {
 
-      console.log(`[Analyze API Debug] market=${market} yfSymbol=${yfSymbol} yfInterval=${yfInterval} daysToFetch=${daysToFetch} rawCount=${rawCount} filteredCount=${quotes.length}`);
-    } catch (err) {
-      console.error('[Yahoo Finance API Error]', err);
-      return NextResponse.json(
-        { error: `OHLCV 데이터를 가져오는데 실패했습니다. (${market} → ${yfSymbol})` },
-        { status: 502 }
-      );
+      const { yfInterval, daysToFetch } = resolveInterval(interval);
+      const period1Date = new Date();
+      period1Date.setDate(period1Date.getDate() - daysToFetch);
+      const yahooFinance = new YahooFinance();
+
+      try {
+        // Fetch main quotes and other timeframes in parallel
+        const [chartRes, res5m, res30m, res1h, res1d] = await Promise.all([
+          yahooFinance.chart(yfSymbol, {
+            period1: period1Date.toISOString(),
+            interval: yfInterval
+          }),
+          fetchTimeframeQuotes(yahooFinance, yfSymbol, '5m'),
+          fetchTimeframeQuotes(yahooFinance, yfSymbol, '30m'),
+          fetchTimeframeQuotes(yahooFinance, yfSymbol, '60m'),
+          fetchTimeframeQuotes(yahooFinance, yfSymbol, '1d'),
+        ]);
+
+        const rawCount = chartRes.quotes?.length ?? 0;
+        const isCommodityOrFuture = yfSymbol.endsWith('=F') || yfSymbol.startsWith('^');
+        quotes = (chartRes.quotes || [])
+          .filter((q: { open: number | null; high: number | null; low: number | null; close: number | null; volume?: number | null }) => {
+            if (q.open == null || q.high == null || q.low == null || q.close == null) {
+              return false;
+            }
+            if (isCommodityOrFuture && q.open === q.close && q.high === q.low) {
+              return false;
+            }
+            const bodyMax = Math.max(q.open, q.close);
+            const bodyMin = Math.min(q.open, q.close);
+            const upperWick = (q.high - bodyMax) / bodyMax;
+            const lowerWick = (bodyMin - q.low) / bodyMin;
+            if (upperWick > 0.05 || lowerWick > 0.05) {
+              return false;
+            }
+            return true;
+          });
+
+        quotes5m = res5m;
+        quotes30m = res30m;
+        quotes1h = res1h;
+        quotes1d = res1d;
+
+        console.log(`[Analyze API Debug] market=${market} yfSymbol=${yfSymbol} yfInterval=${yfInterval} daysToFetch=${daysToFetch} rawCount=${rawCount} filteredCount=${quotes.length}`);
+      } catch (err) {
+        console.error('[Yahoo Finance API Error]', err);
+        return NextResponse.json(
+          { error: `OHLCV 데이터를 가져오는데 실패했습니다. (${market} → ${yfSymbol})` },
+          { status: 502 }
+        );
+      }
     }
 
     if (!quotes.length) {
@@ -308,6 +333,7 @@ export async function POST(request: Request) {
 
     // Take up to last 150 candles for the LLM
     const finalQuotes = processedQuotes.slice(-150);
+    const currentPrice = finalQuotes[finalQuotes.length - 1].close as number;
 
     // ── Build OHLCV text for LLM ───────────────
     const ohlcvString = finalQuotes.map(q => 
@@ -350,18 +376,13 @@ export async function POST(request: Request) {
       try {
         console.log(`[Gemini API] Analyzing ${market} (${yfSymbol}) @ ${interval}...`);
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-          model: 'gemini-2.5-flash',
-          generationConfig: {
-            responseMimeType: "application/json",
-          }
-        });
 
         const prompt = `당신은 현재 데이터 기반(Data-Driven)으로 연동된 기관급 SMC 분석 AI입니다. 
 
 [동기화된 차트 정보]
 - 확정 종목(Symbol): ${market}
 - 확정 타임프레임(Interval): ${interval}
+- 현재 가격(Current Price): ${formatPrice(currentPrice, market)}
 
 [OHLCV 캔들 데이터 (최근 ${finalQuotes.length}개)]
 ${ohlcvString}
@@ -373,8 +394,22 @@ ${ohlcvString}
 - 일봉 흐름: ${context1d}
 
 [수행 지침]
-1. 제공된 주요 타임프레임(${interval})의 최근 OHLCV 데이터를 분석하여 최고점/최저점 기반의 Order Block 가격을 정확히 소수점까지 도출하고, 시장의 추세 전환(CHoCH) 여부와 기관의 매집 심리를 분석하십시오. 환각을 일으키지 마십시오. 오더블록(OB)과 진입가, 손절가는 반드시 제공된 OHLCV 데이터 범위 내에서 거래 가능한 실제 가격 수치로만 채워서 응답하십시오.
-2. 주요 분석 타임프레임 외에도 제공된 주변 타임프레임(5분, 30분, 1시간, 일봉)의 차트 흐름을 파악하여 각각에 대한 짧은 차트상의 기술적 흐름 요약(1~2문장)과 트렌드(BULLISH/BEARISH/NEUTRAL)를 함께 JSON 응답에 포함하십시오.
+1. 제공된 주요 타임프레임(${interval})의 최근 OHLCV 데이터를 분석하여 최고점/최저점 기반의 Order Block 가격을 정확히 소수점까지 도출하고, 시장의 추세 전환(CHoCH) 여부와 기관의 매집 심리를 분석하십시오. 환각을 일으키지 마십시오.
+2. 진입가(entry), 익절가(tp), 손절가(sl) 설정에 관한 특별 규칙:
+   - **현재 가격(${formatPrice(currentPrice, market)})에 기반하여 극단적으로 멀지 않고 현실적으로 수일 내에 진입/청산이 가능한 현실적인 가격대를 계산하여 설정하십시오.** 절대 수주일 전의 차트 끝부분에 있는 터무니없는 가격을 진입가로 주지 마십시오.
+   - **Plan A 진입 가격(entry)은 반드시 현재 가격(${formatPrice(currentPrice, market)})에서 타임프레임에 맞춰 합리적인 거리(예: 1시간봉/4시간봉 기준 현재가 기준 0.5% ~ 2.5% 내외, 일봉 기준 1% ~ 5% 내외)에 설정되어야 합니다.**
+   - **방향성 및 일관성 규칙**:
+     - 만약 추천 포지션이 **매수(BUY / STRONG BUY)**인 경우:
+       - Entry(진입가)는 현재가 근처 혹은 살짝 아래에 두어 눌림목 진입을 유도하십시오.
+       - Stop Loss (SL, 손절가)는 반드시 Entry보다 **낮아야(작아야)** 합니다.
+       - Take Profit (TP, 익절가)는 반드시 Entry보다 **높아야(커야)** 합니다.
+     - 만약 추천 포지션이 **매도(SELL / STRONG SELL)**인 경우:
+       - Entry(진입가)는 현재가 근처 혹은 살짝 위에 두어 반등 시 매도 진입을 유도하십시오.
+       - Stop Loss (SL, 손절가)는 반드시 Entry보다 **높아야(커야)** 합니다.
+       - Take Profit (TP, 익절가)는 반드시 Entry보다 **낮아야(작아야)** 합니다.
+     - 대기(WAIT) 또는 불확실한 상황이라도, Plan A 시나리오를 설정할 때는 위 방향성 및 손익비(Risk-Reward) 논리를 완벽히 준수해야 합니다.
+   - Plan B 진입 가격 역시 현재 가격에서 무효화/돌파 시나리오에 맞는 적절한 거리여야 합니다.
+3. 주요 분석 타임프레임 외에도 제공된 주변 타임프레임(5분, 30분, 1시간, 일봉)의 차트 흐름을 파악하여 각각에 대한 짧은 차트상의 기술적 흐름 요약(1~2문장)과 트렌드(BULLISH/BEARISH/NEUTRAL)를 함께 JSON 응답에 포함하십시오.
 
 [5대 전문 영역 분석 지침]
 1. Market Structure (SMC): CHoCH, BOS, MSS를 감지하여 추세의 진정한 전환점 및 Order Block(OB)과 Fair Value Gap(FVG) 겹침 구간(Kill Zone) 특정.
@@ -441,10 +476,48 @@ ${ohlcvString}
   }
 }`;
 
-        const result = await model.generateContent([prompt]);
-        rawResponseText = result.response.text().trim();
+        const candidateModels = [
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-flash-lite-latest'
+        ];
 
-        const parsed = JSON.parse(rawResponseText);
+        let lastError: unknown = null;
+        let successModel = '';
+        let parsed = null;
+
+        for (const modelName of candidateModels) {
+          try {
+            console.log(`[Gemini API] Attempting analysis with model: ${modelName}...`);
+            const model = genAI.getGenerativeModel({ 
+              model: modelName,
+              generationConfig: {
+                responseMimeType: "application/json",
+              }
+            });
+            const result = await model.generateContent([prompt]);
+            if (result && result.response) {
+              rawResponseText = result.response.text().trim();
+              if (rawResponseText) {
+                parsed = JSON.parse(rawResponseText);
+                successModel = modelName;
+                break;
+              }
+            }
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.warn(`[Gemini API Warning] Model ${modelName} failed: ${errMsg}`);
+            lastError = err;
+          }
+        }
+
+        if (!parsed) {
+          throw lastError || new Error("All candidate Gemini models failed to generate content.");
+        }
+
+        console.log(`[Gemini API Success] Successfully analyzed using model: ${successModel}`);
 
         // Clean up price decimals in AI output to prevent long decimals in UI
         if (parsed.plan_a) {
@@ -594,13 +667,15 @@ function buildDataDrivenFallback(quotes: any[], market: string) {
 
   // Extract price stats from real data
   const closes = quotes.map(q => q.close as number);
-  const highs  = quotes.map(q => q.high as number);
-  const lows   = quotes.map(q => q.low as number);
-
   const currentPrice = closes[closes.length - 1];
-  const highestHigh  = Math.max(...highs);
-  const lowestLow    = Math.min(...lows);
-  const range        = highestHigh - lowestLow;
+
+  // To avoid extreme levels from far back, use recent quotes (e.g. last 20 candles) to estimate recent volatility range
+  const recentQuotes = quotes.slice(-20);
+  const recentHighs = recentQuotes.map(q => q.high as number);
+  const recentLows = recentQuotes.map(q => q.low as number);
+  const highestHigh  = Math.max(...recentHighs);
+  const lowestLow    = Math.min(...recentLows);
+  const range        = highestHigh - lowestLow || currentPrice * 0.02; // fallback to 2% if range is 0
 
   // Simple trend detection: compare recent close vs earlier close
   const recentAvg = closes.slice(-10).reduce((a, b) => a + b, 0) / 10;
@@ -612,17 +687,43 @@ function buildDataDrivenFallback(quotes: any[], market: string) {
   let entry: number, tp: number, sl: number, entryB: number;
 
   if (isBullish) {
-    // Bullish: entry near recent low (OB zone), TP near high, SL below range
-    entry  = currentPrice - range * 0.1;
-    tp     = currentPrice + range * 0.3;
-    sl     = currentPrice - range * 0.25;
-    entryB = lowestLow + range * 0.05;
+    // Bullish Long setup:
+    // Entry at a slight pullback (e.g. 15% of recent range below currentPrice)
+    entry  = currentPrice - range * 0.15;
+    if (entry >= currentPrice) {
+      entry = currentPrice * 0.995;
+    }
+    // TP at recent high or above currentPrice
+    tp     = currentPrice + range * 0.35;
+    if (tp <= entry) {
+      tp = entry * 1.015;
+    }
+    // SL below recent low or below entry
+    sl     = entry - range * 0.25;
+    if (sl >= entry) {
+      sl = entry * 0.985;
+    }
+    // Plan B: Breakdown entry below SL
+    entryB = sl * 0.995;
   } else {
-    // Bearish: entry near recent high (OB zone), TP near low, SL above range
-    entry  = currentPrice + range * 0.1;
-    tp     = currentPrice - range * 0.3;
-    sl     = currentPrice + range * 0.25;
-    entryB = highestHigh - range * 0.05;
+    // Bearish Short setup:
+    // Entry at a slight bounce (e.g. 15% of recent range above currentPrice)
+    entry  = currentPrice + range * 0.15;
+    if (entry <= currentPrice) {
+      entry = currentPrice * 1.005;
+    }
+    // TP at recent low or below currentPrice
+    tp     = currentPrice - range * 0.35;
+    if (tp >= entry) {
+      tp = entry * 0.985;
+    }
+    // SL above recent high or above entry
+    sl     = entry + range * 0.25;
+    if (sl <= entry) {
+      sl = entry * 1.015;
+    }
+    // Plan B: Breakout entry above SL
+    entryB = sl * 1.005;
   }
 
   const getFallbackFlow = (label: string, bullish: boolean, price: number, pct: number) => {

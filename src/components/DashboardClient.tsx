@@ -4,7 +4,17 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Target, Loader2, Zap, Award, Crown, Diamond, AlertTriangle, MonitorPlay, Activity, Crosshair, BarChart3, Scan } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import LightweightChart from './LightweightChart';
+import dynamic from 'next/dynamic';
+
+const TradingViewWidget = dynamic(() => import('./TradingViewWidget'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[420px] w-full bg-slate-950/50 flex flex-col items-center justify-center text-slate-500">
+      <Loader2 className="w-16 h-16 mb-4 animate-spin text-indigo-500 opacity-50" />
+      <p className="text-lg font-bold tracking-widest animate-pulse">LOADING REALTIME CHART...</p>
+    </div>
+  ),
+});
 
 const cleanSymbol = (sym: string) => sym.includes(':') ? sym.split(':')[1] : sym;
 
@@ -17,7 +27,7 @@ const PRICE_DECIMALS: Record<string, number> = {
   'OANDA:XAGUSD':    3,
   'OANDA:BTCUSD':    1,
   'OANDA:NAS100USD': 1,
-  'OANDA:HK50':      0,
+  'OANDA:HK33HKD':   0,
 };
 
 const formatPrice = (price: unknown, sym: string): string => {
@@ -91,7 +101,7 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
   // ── Symbol & Interval ──
   const [symbol, setSymbol] = useState('OANDA:EURUSD');
   const [interval, setInterval] = useState('15m');
-  const [visibleRange, setVisibleRange] = useState<{ from: number; to: number } | null>(null);
+  const [visibleRange] = useState<{ from: number; to: number } | null>(null);
 
   // ── Chart data ──
   const [ohlcvData, setOhlcvData] = useState<OHLCVData[]>([]);
@@ -248,6 +258,35 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
   const isLimitReached = todayScanCount >= dailyLimit && dailyLimit < 9999;
   const fakeoutWarning = analysisResult?.fakeout_warning?.detected ? analysisResult.fakeout_warning : null;
 
+  const renderExecutiveTargets = () => {
+    if (!analysisResult) return null;
+    return (
+      <div className="bg-[#0a0a0a] border border-slate-800 p-6 rounded-2xl shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+          <Crosshair className="w-32 h-32" />
+        </div>
+        <h3 className="text-slate-500 text-xs font-black tracking-[0.2em] mb-6 border-b border-slate-800 pb-2">EXECUTIVE TARGETS</h3>
+        
+        <div className="flex flex-col gap-5">
+          <div>
+            <span className="text-slate-500 text-xs font-bold tracking-widest block mb-1">ENTRY (OB)</span>
+            <span className="text-5xl font-black text-white">{formatPrice(analysisResult.plan_a?.entry, symbol)}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="bg-green-500/5 border border-green-500/20 p-3 rounded-xl">
+              <span className="text-green-500/60 text-[10px] font-bold tracking-widest block mb-1">TARGET (TP)</span>
+              <span className="text-2xl font-black text-green-400">{formatPrice(analysisResult.plan_a?.tp, symbol)}</span>
+            </div>
+            <div className="bg-red-500/5 border border-red-500/20 p-3 rounded-xl">
+              <span className="text-red-500/60 text-[10px] font-bold tracking-widest block mb-1">STOP (SL)</span>
+              <span className="text-2xl font-black text-red-400">{formatPrice(analysisResult.plan_a?.sl, symbol)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ──────────────────────────────────────────────
   // Render
   // ──────────────────────────────────────────────
@@ -261,7 +300,27 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 animate-[fadeIn_0.5s_ease-out]">
+    <div className="flex flex-col gap-8 animate-[fadeIn_0.5s_ease-out]">
+      {/* Tier Info Card (Top of the page) */}
+      <div className="bg-gradient-to-br from-slate-900 to-[#0a0a0a] border border-slate-800 p-6 rounded-2xl flex items-center justify-between shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-slate-950 rounded-xl border border-white/5 shadow-inner">
+            {getTierIcon()}
+          </div>
+          <div>
+            <h3 className="text-white font-bold tracking-wide">{userTier} TIER</h3>
+            <p className="text-slate-400 text-sm flex items-center gap-1">
+              <Target className="w-3 h-3" />
+              Remaining Scans: <span className="text-cyan-400 font-bold">{dailyLimit > 9000 ? '∞' : dailyLimit - todayScanCount}</span>
+            </p>
+          </div>
+        </div>
+        <Link href="/pricing" className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors border border-slate-700">
+          UPGRADE
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
       
       {/* ─── LEFT PANEL: Chart Widget (70%) ─── */}
       <div className="xl:col-span-8 flex flex-col gap-6 min-w-0">
@@ -287,7 +346,7 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
               <option value="OANDA:XAGUSD">XAG/USD (은)</option>
               <option value="OANDA:BTCUSD">BTC/USD (비트코인)</option>
               <option value="OANDA:NAS100USD">US100 (나스닥)</option>
-              <option value="OANDA:HK50">HK50 (항셍)</option>
+              <option value="OANDA:HK33HKD">HK33 (항셍)</option>
             </select>
 
             {/* Interval Selector */}
@@ -347,46 +406,16 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
           </div>
         </div>
 
-        {/* Chart Container */}
+        {/* Chart Container — Unified Real-time TradingView with AI Signal Overlay */}
         <div className="w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative min-h-[420px]">
-          {ohlcvData.length > 0 ? (
-            <LightweightChart 
-              data={ohlcvData}
-              symbol={symbol}
-              entry={analysisResult?.plan_a?.entry} 
-              tp={analysisResult?.plan_a?.tp} 
-              sl={analysisResult?.plan_a?.sl} 
-              onVisibleRangeChange={setVisibleRange}
-            />
-          ) : (
-            <div className="h-[420px] w-full bg-slate-950/50 flex flex-col items-center justify-center text-slate-500">
-              {isLoadingChart ? (
-                <>
-                  <Loader2 className="w-16 h-16 mb-4 animate-spin text-indigo-500 opacity-50" />
-                  <p className="text-lg font-bold tracking-widest animate-pulse">LOADING CHART DATA...</p>
-                </>
-              ) : chartError ? (
-                <>
-                  <AlertTriangle className="w-16 h-16 mb-4 text-red-500/50" />
-                  <p className="text-lg font-bold tracking-widest text-red-400">DATA FETCH ERROR</p>
-                  <p className="text-sm mt-2 text-red-400/60">{chartError}</p>
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="w-16 h-16 mb-4 opacity-20" />
-                  <p className="text-lg font-bold tracking-widest">NO DATA LOADED</p>
-                  <p className="text-sm mt-2">상단 종목을 선택하면 자동으로 차트가 로드됩니다.</p>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Loading overlay on existing chart */}
-          {isLoadingChart && ohlcvData.length > 0 && (
-            <div className="absolute inset-0 bg-[#0a0a0a]/50 flex items-center justify-center z-40 backdrop-blur-sm">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-            </div>
-          )}
+          <TradingViewWidget 
+            symbol={symbol} 
+            interval={interval}
+            entry={analysisResult?.plan_a?.entry}
+            tp={analysisResult?.plan_a?.tp}
+            sl={analysisResult?.plan_a?.sl}
+            trend={analysisResult?.trend}
+          />
 
           {/* High-Tech Holographic Scanning Overlay */}
           {isScanning && (
@@ -456,6 +485,13 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
           )}
         </div>
 
+        {/* Mobile Executive Targets (shows under the chart on mobile) */}
+        {analysisResult && (
+          <div className="xl:hidden">
+            {renderExecutiveTargets()}
+          </div>
+        )}
+
         {/* STRATEGY THESIS (moved under the chart) */}
         {analysisResult && (
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl animate-[slideIn_0.4s_ease-out] space-y-4">
@@ -475,7 +511,7 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
             </p>
 
             {/* 5 Technical Reasons List */}
-            {analysisResult.thesis?.reasoning_list && analysisResult.thesis.reasoning_list.length > 0 && (
+            {analysisResult.thesis?.reasoning_list && Array.isArray(analysisResult.thesis.reasoning_list) && analysisResult.thesis.reasoning_list.length > 0 && (
               <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
                 <span className="text-slate-500 text-[10px] font-black tracking-widest block uppercase mb-1">TECHNICAL EVIDENCE (기술적 분석 근거)</span>
                 <div className="flex flex-col gap-2.5">
@@ -494,7 +530,7 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
         )}
 
         {/* Multi-Timeframe Chart Flow Matrix */}
-        {analysisResult && analysisResult.multi_timeframe_analysis && typeof analysisResult.multi_timeframe_analysis === 'object' && (
+        {analysisResult && analysisResult.multi_timeframe_analysis && typeof analysisResult.multi_timeframe_analysis === 'object' && !Array.isArray(analysisResult.multi_timeframe_analysis) && (
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl animate-[slideIn_0.4s_ease-out] space-y-4">
             <h3 className="text-slate-500 text-xs font-black tracking-[0.2em]">MULTI-TIMEFRAME CHART FLOW (주변 타임프레임 차트 흐름 분석)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -527,25 +563,6 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
 
       {/* ─── RIGHT PANEL: Results & Diagnostics (30%) ─── */}
       <div className="xl:col-span-4 flex flex-col gap-6">
-        
-        {/* Tier Info Card */}
-        <div className="bg-gradient-to-br from-slate-900 to-[#0a0a0a] border border-slate-800 p-6 rounded-2xl flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-slate-950 rounded-xl border border-white/5 shadow-inner">
-              {getTierIcon()}
-            </div>
-            <div>
-              <h3 className="text-white font-bold tracking-wide">{userTier} TIER</h3>
-              <p className="text-slate-400 text-sm flex items-center gap-1">
-                <Target className="w-3 h-3" />
-                Remaining Scans: <span className="text-cyan-400 font-bold">{dailyLimit > 9000 ? '∞' : dailyLimit - todayScanCount}</span>
-              </p>
-            </div>
-          </div>
-          <Link href="/pricing" className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors border border-slate-700">
-            UPGRADE
-          </Link>
-        </div>
 
         {/* ANALYSIS RESULT PANEL */}
         {!analysisResult ? (
@@ -567,29 +584,9 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
               </div>
             )}
 
-            {/* THE BIG THREE (ENTRY, TP, SL) */}
-            <div className="bg-[#0a0a0a] border border-slate-800 p-6 rounded-2xl shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <Crosshair className="w-32 h-32" />
-              </div>
-              <h3 className="text-slate-500 text-xs font-black tracking-[0.2em] mb-6 border-b border-slate-800 pb-2">EXECUTIVE TARGETS</h3>
-              
-              <div className="flex flex-col gap-5">
-                <div>
-                  <span className="text-slate-500 text-xs font-bold tracking-widest block mb-1">ENTRY (OB)</span>
-                  <span className="text-5xl font-black text-white">{formatPrice(analysisResult.plan_a?.entry, symbol)}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="bg-green-500/5 border border-green-500/20 p-3 rounded-xl">
-                    <span className="text-green-500/60 text-[10px] font-bold tracking-widest block mb-1">TARGET (TP)</span>
-                    <span className="text-2xl font-black text-green-400">{formatPrice(analysisResult.plan_a?.tp, symbol)}</span>
-                  </div>
-                  <div className="bg-red-500/5 border border-red-500/20 p-3 rounded-xl">
-                    <span className="text-red-500/60 text-[10px] font-bold tracking-widest block mb-1">STOP (SL)</span>
-                    <span className="text-2xl font-black text-red-400">{formatPrice(analysisResult.plan_a?.sl, symbol)}</span>
-                  </div>
-                </div>
-              </div>
+            {/* Desktop Executive Targets (shows only on desktop) */}
+            <div className="hidden xl:block">
+              {renderExecutiveTargets()}
             </div>
 
             {/* DIAGNOSTICS */}
@@ -658,5 +655,6 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
         </div>
       )}
     </div>
+  </div>
   );
 }

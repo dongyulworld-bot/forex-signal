@@ -47,7 +47,7 @@ const PRICE_PRECISION: Record<string, number> = {
   'OANDA:XAGUSD':    3,
   'OANDA:BTCUSD':    1,
   'OANDA:NAS100USD': 1,
-  'OANDA:HK50':      0,
+  'OANDA:HK33HKD':   0,
 };
 
 function getPrecision(symbol?: string): number {

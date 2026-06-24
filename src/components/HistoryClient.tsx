@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Calendar, TrendingUp, TrendingDown, X, Eye, Activity, AlertTriangle, ChevronDown, Zap, Crosshair } from 'lucide-react';
+import { Search, Calendar, TrendingUp, TrendingDown, X, Eye, Activity, AlertTriangle, ChevronDown, Zap, Crosshair, Loader2 } from 'lucide-react';
 
 const cleanSymbol = (sym: string) => sym.includes(':') ? sym.split(':')[1] : sym;
 
@@ -14,7 +14,7 @@ const PRICE_DECIMALS: Record<string, number> = {
   'OANDA:XAGUSD':    3,
   'OANDA:BTCUSD':    1,
   'OANDA:NAS100USD': 1,
-  'OANDA:HK50':      0,
+  'OANDA:HK33HKD':   0,
 };
 
 const formatPrice = (price: unknown, sym: string): string => {
@@ -60,6 +60,39 @@ interface HistoryClientProps {
 export default function HistoryClient({ initialHistories, todayScanCount, dailyLimit }: HistoryClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [isLoadingLivePrice, setIsLoadingLivePrice] = useState(false);
+
+  React.useEffect(() => {
+    if (!selectedItem) {
+      setLivePrice(null);
+      return;
+    }
+
+    const fetchLivePrice = async () => {
+      setIsLoadingLivePrice(true);
+      try {
+        const res = await fetch('/api/chart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ market: selectedItem.market, interval: '15m' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ohlcvData && data.ohlcvData.length > 0) {
+            const lastCandle = data.ohlcvData[data.ohlcvData.length - 1];
+            setLivePrice(lastCandle.close);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch live price:', err);
+      } finally {
+        setIsLoadingLivePrice(false);
+      }
+    };
+
+    fetchLivePrice();
+  }, [selectedItem]);
 
   // Filter histories based on search term
   const filteredHistories = initialHistories.filter(item =>
@@ -129,7 +162,7 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                 </tr>
               ) : (
                 filteredHistories.map((item) => {
-                  const isPlanA = item.planAProbability >= item.planBProbability;
+                  const isBullish = item.trend.toUpperCase().includes('BULLISH') || item.trend.includes('상승') || item.trend.includes('🟢');
                   return (
                     <tr
                       key={item.id}
@@ -148,7 +181,7 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                         </span>
                       </td>
                       <td className="px-6 py-5 text-sm whitespace-nowrap">
-                        {isPlanA ? (
+                        {isBullish ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                             <TrendingUp className="w-3 h-3" />
                             상승 우세 ({item.planAProbability}%)
@@ -156,7 +189,7 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                             <TrendingDown className="w-3 h-3" />
-                            하락 우세 ({item.planBProbability}%)
+                            하락 우세 ({item.planAProbability}%)
                           </span>
                         )}
                       </td>
@@ -232,10 +265,79 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                   const { fakeout_warning, action_tag, plan_alpha, plan_a, risk_management, order_block_zone, price_context, thesis, multi_timeframe_analysis } = parsedResult;
                   const planA = plan_a || plan_alpha;
                   const action = thesis?.action || action_tag;
-                  const reasoningList: string[] = thesis?.reasoning_list || (thesis?.reasoning ? [thesis.reasoning] : []);
+                  const reasoningList = Array.isArray(thesis?.reasoning_list) ? thesis.reasoning_list : (thesis?.reasoning ? [thesis.reasoning] : []);
+
+                  // Safely resolve metrics
+                  const killZone = parsedResult.market_structure?.kill_zone || order_block_zone || '-';
+                  const patternName = parsedResult.patterns?.name || 'None';
+                  const patternConfidence = parsedResult.patterns?.confidence || 0;
+                  const poolAbove = parsedResult.liquidity?.pool_above || price_context?.y_axis_max || '-';
+                  const poolBelow = parsedResult.liquidity?.pool_below || price_context?.y_axis_min || '-';
+                  const riskMgmt = risk_management || parsedResult.liquidity?.stop_hunt_risk || 'MEDIUM';
+
+                  // Calculate Prediction vs Actual live stats
+                  const entryVal = planA?.entry ? parseFloat(String(planA.entry).replace(/,/g, '')) : NaN;
+                  const liveVal = livePrice;
+                  const hasLiveDiff = !isNaN(entryVal) && liveVal !== null;
+                  const isBullishTrade = action?.toUpperCase().includes('BUY') || selectedItem.trend.toUpperCase().includes('BULLISH') || selectedItem.trend.includes('상승') || selectedItem.trend.includes('🟢');
+                  
+                  let pctChange = 0;
+                  let isProfit = false;
+                  if (hasLiveDiff && liveVal) {
+                    const diff = liveVal - entryVal;
+                    pctChange = (diff / entryVal) * 100;
+                    isProfit = isBullishTrade ? diff > 0 : diff < 0;
+                  }
 
                   return (
                     <div className="space-y-6">
+                      {/* Live Prediction vs Actual Card */}
+                      <div className="bg-slate-950 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
+                        <div className="flex items-center justify-between mb-4 border-b border-slate-900 pb-3">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-cyan-400 animate-pulse" />
+                            <span className="text-xs font-bold text-slate-350 tracking-wider">실시간 시세 비교 피드백 (Prediction vs Actual)</span>
+                          </div>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded tracking-widest ${
+                            isBullishTrade ? 'bg-cyan-500/10 text-cyan-400' : 'bg-indigo-500/10 text-indigo-400'
+                          }`}>
+                            {isBullishTrade ? 'LONG BUY POSITION' : 'SHORT SELL POSITION'}
+                          </span>
+                        </div>
+
+                        {isLoadingLivePrice ? (
+                          <div className="flex items-center justify-center py-4 text-slate-500 text-xs gap-2 font-bold tracking-wider">
+                            <Loader2 className="w-4 h-4 animate-spin text-cyan-500" />
+                            최신 실시간 가격 로딩 중...
+                          </div>
+                        ) : hasLiveDiff && liveVal !== null ? (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                            <div className="bg-slate-900/40 border border-slate-850 p-3.5 rounded-xl text-center">
+                              <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase block mb-1">분석 시점 진입가 (Entry)</span>
+                              <span className="text-xl font-black text-slate-300 font-mono">{formatPrice(entryVal, selectedItem.market)}</span>
+                            </div>
+                            <div className="bg-slate-900/40 border border-slate-850 p-3.5 rounded-xl text-center">
+                              <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase block mb-1">실시간 현재가 (Live Price)</span>
+                              <span className="text-xl font-black text-white font-mono">{formatPrice(liveVal, selectedItem.market)}</span>
+                            </div>
+                            <div className={`p-3.5 rounded-xl border text-center transition-all duration-300 ${
+                              isProfit 
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                                : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                            }`}>
+                              <span className="text-[10px] font-bold tracking-widest uppercase block mb-1">예측 대비 결과 (Result)</span>
+                              <span className="text-xl font-black font-mono">
+                                {isProfit ? 'PROFIT' : 'LOSS'} ({isProfit ? '+' : ''}{pctChange.toFixed(2)}%)
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-slate-500 text-xs font-semibold">
+                            ⚠️ 실시간 현재가 데이터를 불러오지 못했습니다. 장외 시간이거나 주말일 수 있습니다.
+                          </div>
+                        )}
+                      </div>
+
                       {/* Fakeout Warning & Action Tag */}
                       {(fakeout_warning?.detected || action) && (
                         <div className="space-y-3">
@@ -312,7 +414,7 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                       )}
 
                       {/* Multi-Timeframe Chart Flow Matrix */}
-                      {multi_timeframe_analysis && typeof multi_timeframe_analysis === 'object' && (
+                      {multi_timeframe_analysis && typeof multi_timeframe_analysis === 'object' && !Array.isArray(multi_timeframe_analysis) && (
                         <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl space-y-4">
                           <h4 className="text-white font-bold text-sm flex items-center gap-2">
                             <Activity className="w-4 h-4 text-cyan-400" />
@@ -348,7 +450,7 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                       <div className="bg-slate-900/50 border border-slate-800 p-5 rounded-2xl">
                         <div className="flex justify-between items-end mb-3">
                           <span className="text-sm font-bold text-slate-300">손익비 (Risk : Reward)</span>
-                          <span className="text-xs text-slate-500">{risk_management}</span>
+                          <span className="text-xs text-slate-500">{riskMgmt}</span>
                         </div>
                         <div className="w-full h-4 rounded-full overflow-hidden flex border border-slate-800 shadow-inner">
                           {/* We assume standard 1:3 ratio for visuals if exact numbers aren't parseable */}
@@ -377,12 +479,23 @@ export default function HistoryClient({ initialHistories, todayScanCount, dailyL
                         <div className="p-5 border-t border-slate-800/50 space-y-6">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">인식 가격대 (Price Context)</span>
-                              <p className="text-sm text-slate-300 font-mono">{formatPrice(price_context?.y_axis_min, selectedItem.market)} ~ {formatPrice(price_context?.y_axis_max, selectedItem.market)}</p>
+                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">인식 가격 범위 (Price Range)</span>
+                              <p className="text-sm text-slate-300 font-mono">{formatDecimalsInString(poolBelow, selectedItem.market)} ~ {formatDecimalsInString(poolAbove, selectedItem.market)}</p>
                             </div>
                             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">매수/매도 대기 구간 (OB Zone)</span>
-                              <p className="text-sm text-slate-300">{order_block_zone}</p>
+                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">매수/매도 대기 구간 (OB / Kill Zone)</span>
+                              <p className="text-sm text-slate-300">{formatDecimalsInString(killZone, selectedItem.market)}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">감지된 패턴 (Pattern Name)</span>
+                              <p className="text-sm text-slate-300">{patternName} (신뢰도: {patternConfidence}%)</p>
+                            </div>
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">포지션 권장 전략 (Action)</span>
+                              <p className="text-sm text-slate-300 font-bold text-cyan-400">{action}</p>
                             </div>
                           </div>
                           

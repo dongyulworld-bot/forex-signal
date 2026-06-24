@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import YahooFinance from 'yahoo-finance2';
+import { isOandaConfigured, fetchOandaCandles } from '@/lib/oanda';
 
 export const runtime = 'nodejs';
 
@@ -17,7 +18,7 @@ const SYMBOL_MAP: Record<string, string> = {
   'OANDA:XAGUSD':    'SI=F',
   'OANDA:BTCUSD':    'BTC-USD',
   'OANDA:NAS100USD': 'NQ=F',
-  'OANDA:HK50':      '^HSI',
+  'OANDA:HK33HKD':   '^HSI',
 };
 
 // ──────────────────────────────────────────────
@@ -62,20 +63,36 @@ export async function POST(req: Request) {
     const period1 = new Date();
     period1.setDate(period1.getDate() - daysToFetch);
 
-    const yahooFinance = new YahooFinance();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let quotes: any[];
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const chartRes: any = await yahooFinance.chart(yfSymbol, {
-        period1: period1.toISOString(),
-        interval: yfInterval,
-      });
-      quotes = chartRes.quotes || [];
-    } catch (err) {
-      console.error('[Chart API] Yahoo Finance error:', err);
-      return NextResponse.json({ error: `Failed to fetch data for ${market} (${yfSymbol})` }, { status: 502 });
+    let quotes: any[] = [];
+    const oandaActive = isOandaConfigured();
+
+    if (oandaActive) {
+      try {
+        console.log(`[OANDA API Active] Fetching chart candles: market=${market} interval=${interval}`);
+        quotes = await fetchOandaCandles(market, interval, 1000);
+      } catch (err) {
+        console.error('[Chart API] OANDA fetch error, falling back to Yahoo Finance:', err);
+      }
+    }
+
+    if (!quotes.length) {
+      const period1 = new Date();
+      period1.setDate(period1.getDate() - daysToFetch);
+      const yahooFinance = new YahooFinance();
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chartRes: any = await yahooFinance.chart(yfSymbol, {
+          period1: period1.toISOString(),
+          interval: yfInterval,
+        });
+        quotes = chartRes.quotes || [];
+      } catch (err) {
+        console.error('[Chart API] Yahoo Finance error:', err);
+        return NextResponse.json({ error: `Failed to fetch data for ${market} (${yfSymbol})` }, { status: 502 });
+      }
     }
 
     if (!quotes.length) {
