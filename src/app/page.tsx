@@ -313,9 +313,9 @@ export default function Home() {
               <div className="flex items-start gap-5">
                 <div className="w-10 h-10 shrink-0 bg-slate-800 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-inner">1</div>
                 <div>
-                  <h4 className="text-white font-bold text-lg mb-2">종목 선택 & 이미지 업로드</h4>
+                  <h4 className="text-white font-bold text-lg mb-2">{t('step1Title')}</h4>
                   <p className="text-sm text-slate-400 leading-relaxed">
-                    분석할 차트를 캡처하여 붙여넣거나 파일을 업로드하세요. 나스닥, 오일, 비트코인, 외환 등 캔들이 있는 모든 종목이 가능합니다.
+                    {t('step1Desc')}
                   </p>
                 </div>
               </div>
@@ -323,9 +323,9 @@ export default function Home() {
               <div className="flex items-start gap-5">
                 <div className="w-10 h-10 shrink-0 bg-slate-800 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-inner">2</div>
                 <div>
-                  <h4 className="text-white font-bold text-lg mb-2">실시간 AI 엔진 구동</h4>
+                  <h4 className="text-white font-bold text-lg mb-2">{t('step2Title')}</h4>
                   <p className="text-sm text-slate-400 leading-relaxed">
-                    ULTRAPLEX 전용 딥러닝 엔진이 수 초 내에 차트의 패턴, 지지/저항, 추세를 정밀하게 분석합니다.
+                    {t('step2Desc')}
                   </p>
                 </div>
               </div>
@@ -333,9 +333,9 @@ export default function Home() {
               <div className="flex items-start gap-5 relative">
                 <div className="w-10 h-10 shrink-0 bg-cyan-500/20 border border-cyan-500/30 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-[0_0_15px_rgba(6,182,212,0.3)]">3</div>
                 <div>
-                  <h4 className="text-white font-bold text-lg mb-2">Plan A/B 시나리오 확인</h4>
+                  <h4 className="text-white font-bold text-lg mb-2">{t('step3Title')}</h4>
                   <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                    가장 확률 높은 두 가지 시나리오와 함께 명확한 <strong className="text-white font-semibold">추천 매매가(진입, 익절, 손절)</strong>를 제공받습니다.
+                    {t('step3Desc')}
                   </p>
                   
                   <Link 

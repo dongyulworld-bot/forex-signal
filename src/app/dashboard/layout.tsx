@@ -3,10 +3,8 @@ import { redirect } from 'next/navigation';
 import { verifySessionToken } from '@/lib/auth';
 import { dbService } from '@/lib/db';
 import Sidebar from '@/components/Sidebar';
-import Link from 'next/link';
 
 export const runtime = 'nodejs';
-
 
 export default async function DashboardLayout({
   children,
@@ -32,32 +30,28 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // const superAdminEmail = await dbService.getSuperAdminEmail();
-  // const isSuperAdmin = user.email === superAdminEmail;
-
   return (
     <div className="min-h-screen bg-[#020617] text-white flex flex-col md:flex-row">
-      {/* Sidebar Navigation */}
       <Sidebar user={{ name: user.name, email: user.email }} />
 
-      {/* Main Content Area */}
       <div className="flex-1 md:pl-64 flex flex-col min-h-screen">
-        {/* CRM Link Banner - Temporarily visible to all users for testing */}
-        <div className="bg-slate-900/80 border-b border-cyan-500/20 px-6 py-3 flex items-center justify-between text-xs sm:text-sm z-30 sticky top-16 md:top-0 backdrop-blur-md">
-          <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-slate-400 font-medium hidden sm:inline">User Mode:</span>
-            <span className="text-cyan-400 font-bold">{user.email}</span>
+        {/* Top status bar — simplified, no CRM clutter for end users */}
+        <div className="bg-slate-950/70 border-b border-slate-900/80 px-6 py-2 flex items-center justify-between text-xs z-30 sticky top-14 md:top-0 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-500 hidden sm:inline">접속 중:</span>
+            <span className="text-slate-300 font-medium truncate max-w-[200px]">{user.email}</span>
           </div>
-          <Link
+          {/* CRM link — visible for admin/agent roles only in a real prod build */}
+          <a
             href="/crm"
-            className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all shadow-[0_0_15px_rgba(6,182,212,0.25)] text-xs flex items-center space-x-1"
+            className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold transition-all text-[10px] tracking-wider border border-slate-700"
           >
-            <span>CRM</span>
-            <span className="text-[10px] font-normal">→</span>
-          </Link>
+            CRM →
+          </a>
         </div>
-        <main className="flex-1 w-full max-w-7xl mx-auto px-6 md:px-12 pt-24 md:pt-10 pb-16">
+
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 pt-20 md:pt-8 pb-16">
           {children}
         </main>
       </div>

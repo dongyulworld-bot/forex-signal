@@ -17,12 +17,12 @@ export const translations = {
     // How it works
     howTitle: '가장 직관적인 3단계 작동 방식',
     howSub: '복잡한 설정이나 가입 절차 없이, 단 세 단계만으로 프로의 관점을 획득하세요.',
-    step1Title: '차트 캡처 및 업로드',
-    step1Desc: '거래 중인 플랫폼(MT5, 트레이딩뷰 등)의 차트 화면을 캡처하여 드래그 앤 드롭으로 간편하게 올려주세요.',
-    step2Title: 'AI의 초고속 분석',
-    step2Desc: '인공지능 모델이 7초 안에 지지/저항 라인과 추세를 판독하고, 즉각적으로 대응 가능한 시나리오 플랜 A/B를 도출합니다.',
-    step3Title: '확신을 가진 트레이딩',
-    step3Desc: '제공된 매매 플랜에 맞춰 매매를 실행하고, 궁금한 점은 1:1로 자동 배정된 전담 멘토에게 실시간 문의하세요.',
+    step1Title: '종목 및 타임프레임 선택',
+    step1Desc: '분석할 해외선물, 외환(FX), 암호화폐 등의 거래 종목과 분석 타임프레임(1분~1일봉)을 대시보드에서 간편하게 선택하세요.',
+    step2Title: '실시간 AI 엔진 구동',
+    step2Desc: 'NEURAL SCAN 버튼을 누르면 전용 딥러닝 SMC 엔진이 최신 캔들 데이터, 오더블록(OB) 구간 및 유동성 범위를 즉각 정밀 스캔합니다.',
+    step3Title: '차트 분석 시나리오 확인',
+    step3Desc: '실시간 차트 위에 플로팅 오버레이되는 진입가(Entry), 익절가(TP), 손절가(SL) 및 전략적 시나리오(Plan A/B)를 확인하고 트레이딩에 적용하세요.',
     
     // Features
     featuresTag: 'Core Value',
@@ -227,12 +227,12 @@ export const translations = {
     // How it works
     howTitle: 'Simple 3-Step Process',
     howSub: 'Get professional perspectives in just three simple steps, without any complex setups.',
-    step1Title: 'Capture & Upload Chart',
-    step1Desc: 'Capture your chart screen on any platform (MT5, TradingView, etc.) and simply drag & drop it.',
-    step2Title: 'Superfast AI Analysis',
-    step2Desc: 'Our AI model scans trend lines, support/resistance in 7 seconds, creating actionable Plan A/B scenarios.',
-    step3Title: 'Trade with Confidence',
-    step3Desc: 'Execute trades based on the generated plan, and chat 1:1 with your automatically assigned mentor.',
+    step1Title: 'Select Symbol & Timeframe',
+    step1Desc: 'Simply choose your trading symbol (Futures, FX, Crypto) and preferred analysis timeframe (1m to 1d) on the dashboard.',
+    step2Title: 'Run Real-Time AI Engine',
+    step2Desc: 'Click NEURAL SCAN to initiate our deep-learning SMC engine, scanning latest candle structures, Order Blocks (OB), and liquidity zones.',
+    step3Title: 'Verify Strategy Scenarios',
+    step3Desc: 'Check the floating target price levels (Entry, TP, SL) overlaying directly on the chart alongside Plan A/B trade setups.',
     
     // Features
     featuresTag: 'Core Value',

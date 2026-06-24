@@ -4,6 +4,9 @@ import { verifySessionToken } from '@/lib/auth';
 import { dbService } from '@/lib/db';
 import DashboardClient from '@/components/DashboardClient';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DashboardPage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session')?.value;
