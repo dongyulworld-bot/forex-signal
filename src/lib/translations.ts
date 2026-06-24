@@ -210,6 +210,13 @@ export const translations = {
     historyModalTitle: 'AI 차트 정밀 진단서',
     historyModalEntry: '추천 매매가 (Entry & Target)',
     historyModalClose: '닫기',
+    // Simulator
+    simTitle: 'AI 시그널 실시간 체험판 (Simulator)',
+    simSelect: '1. 테스트할 금융 자산 선택',
+    simBtn: '실시간 AI 엔진 구동 시작',
+    simScanning: '차트 파이프라인 연산 중...',
+    simSuccess: '스캔 완료! 분석 타깃을 확인하세요.',
+    simResultTitle: '실시간 AI 분석 결과 시나리오',
   },
   en: {
     // Header
@@ -420,5 +427,12 @@ export const translations = {
     historyModalTitle: 'AI Chart Diagnostic Report',
     historyModalEntry: 'Entry & Target',
     historyModalClose: 'Close',
+    // Simulator
+    simTitle: 'AI Signal Realtime Demo (Simulator)',
+    simSelect: '1. Select Preset Asset to Test',
+    simBtn: 'Start Real-Time AI Neural Scan',
+    simScanning: 'Processing Chart Pipeline...',
+    simSuccess: 'Scan Complete! Check Target Levels Below.',
+    simResultTitle: 'Real-Time AI Strategic Scenario',
   }
 };

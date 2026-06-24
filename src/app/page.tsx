@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Upload, Sparkles, TrendingUp, 
   User, MessageSquare, Check, 
-  ChevronDown, ArrowDown, Shield, Cpu
+  ChevronDown, ArrowDown, Shield, Cpu, Loader2
 } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -15,6 +15,63 @@ export default function Home() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
+
+  // Dynamic Counter state
+  const [scanCount, setScanCount] = useState(148235);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setScanCount(prev => prev + Math.floor(Math.random() * 2) + 1);
+    }, 1500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Simulator states
+  const [simAsset, setSimAsset] = useState('XAUUSD');
+  const [simStatus, setSimStatus] = useState<'idle' | 'scanning' | 'success'>('idle');
+  const [simProgress, setSimProgress] = useState(0);
+
+  const startSimScan = () => {
+    setSimStatus('scanning');
+    setSimProgress(10);
+    let progress = 10;
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 20) + 10;
+      if (progress >= 100) {
+        setSimProgress(100);
+        setSimStatus('success');
+        clearInterval(interval);
+      } else {
+        setSimProgress(progress);
+      }
+    }, 250);
+  };
+
+  const simData: Record<string, { entry: string; tp: string; sl: string; trend: string; pattern: string; reason: string }> = {
+    XAUUSD: {
+      entry: '2,324.50',
+      tp: '2,352.00',
+      sl: '2,308.00',
+      trend: '🟢 상승세 (BULLISH)',
+      pattern: 'Bullish Order Block (OB)',
+      reason: '1시간 차트상 주요 지지선 근처에서 매수 거래량 급증 확인. 되돌림 진입 시 추가 상승 우세.',
+    },
+    BTCUSD: {
+      entry: '67,120.00',
+      tp: '68,900.00',
+      sl: '65,800.00',
+      trend: '🟢 상승세 (BULLISH)',
+      pattern: 'Double Bottom Pattern',
+      reason: '4시간봉 기준 쌍바닥 지지 성공 후 거래량 실린 장대양봉 돌파. 상단 FVG 갭을 향한 유동성 유입 흐름.',
+    },
+    NAS100: {
+      entry: '19,650.00',
+      tp: '19,420.00',
+      sl: '19,780.00',
+      trend: '🔴 하락세 (BEARISH)',
+      pattern: 'Bearish Breaker Block',
+      reason: '전일 최고점 돌파 실패 후 하방 압력 지속. 단기 매도 유동성 사냥 후 지지 붕괴 위험 감지.',
+    }
+  };
 
   // Load language settings and user session on mount
   useEffect(() => {
@@ -228,6 +285,14 @@ export default function Home() {
             </Link>
           </div>
 
+          <div className="pt-6 flex justify-center items-center gap-1.5 text-slate-500 font-semibold text-xs tracking-wider uppercase">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span>실시간 누적 차트 진단 수:</span>
+            <span className="text-cyan-400 font-black font-mono text-sm tracking-wide transition-all duration-500">
+              {scanCount.toLocaleString()}건
+            </span>
+          </div>
+
           <div className="pt-10 flex items-center justify-center space-x-2.5 text-sm text-slate-500 font-semibold">
             <Check className="w-5 h-5 text-cyan-400" />
             <span>{t('heroTrust')}</span>
@@ -287,63 +352,130 @@ export default function Home() {
       <section id="analysis-tool" className="py-24 md:py-32 max-w-7xl mx-auto px-6 scroll-mt-20 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-xs text-cyan-400 font-extrabold tracking-widest uppercase">{t('toolTag')}</span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mt-2 tracking-tight">초간단 3단계 차트 분석</h2>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mt-2 tracking-tight">초간단 3단계 차트 분석 & 체험</h2>
           <p className="text-sm sm:text-base text-slate-400 mt-3.5 font-medium">대시보드에서 클릭 몇 번으로 월스트리트급 AI 진단을 실시간으로 받아보세요.</p>
         </div>
 
         <div className="glass-card rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden border border-white/10">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500" />
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
-            {/* Left: Image Showcase */}
-            <div className="relative rounded-2xl overflow-hidden bg-slate-950/50 border border-slate-800 shadow-inner group">
-              {/* 고객님이 업로드한 이미지를 public/how-to-use.png 로 저장하면 자동으로 표시됩니다. */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            {/* Left: Image & Scan Overlay Simulation */}
+            <div className="lg:col-span-7 relative rounded-2xl overflow-hidden bg-slate-950/50 border border-slate-800 shadow-inner group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src="/how-to-use.png" 
                 alt="AI Dashboard Analysis Showcase" 
-                className="w-full h-auto object-contain hover:scale-[1.02] transition-transform duration-700"
+                className="w-full h-auto object-contain hover:scale-[1.01] transition-transform duration-700"
               />
-              {/* Optional overlay */}
-              <div className="absolute inset-0 border border-white/5 rounded-2xl pointer-events-none" />
+              
+              {/* Scanning Holographic Line Effect */}
+              {simStatus === 'scanning' && (
+                <div 
+                  className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_#22d3ee] pointer-events-none z-10"
+                  style={{
+                    animation: 'scan-sweep 1.2s infinite ease-in-out',
+                    top: `${simProgress}%`
+                  }}
+                />
+              )}
+
+              {/* Glowing overlay */}
+              {simStatus === 'scanning' && (
+                <div className="absolute inset-0 bg-cyan-950/20 backdrop-blur-[1px] flex items-center justify-center z-20">
+                  <div className="bg-slate-950/80 border border-cyan-500/30 px-6 py-4 rounded-2xl flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                    <span className="text-xs text-cyan-300 font-bold tracking-widest animate-pulse">{t('simScanning')}</span>
+                    <span className="text-xs font-mono font-bold text-slate-500">{simProgress}%</span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Right: Steps Description */}
-            <div className="space-y-8">
-              <div className="flex items-start gap-5">
-                <div className="w-10 h-10 shrink-0 bg-slate-800 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-inner">1</div>
-                <div>
-                  <h4 className="text-white font-bold text-lg mb-2">{t('step1Title')}</h4>
-                  <p className="text-sm text-slate-400 leading-relaxed">
-                    {t('step1Desc')}
-                  </p>
+            {/* Right: Steps & Interactive Simulator Form */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl space-y-4">
+                <span className="text-xs text-cyan-400 font-extrabold tracking-widest uppercase bg-cyan-950/30 border border-cyan-800/40 px-2 py-0.5 rounded">
+                  {t('simTitle')}
+                </span>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-bold block">{t('simSelect')}</label>
+                  <select
+                    value={simAsset}
+                    onChange={(e) => {
+                      setSimAsset(e.target.value);
+                      setSimStatus('idle');
+                    }}
+                    disabled={simStatus === 'scanning'}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500 font-bold"
+                  >
+                    <option value="XAUUSD">GOLD (금 선물)</option>
+                    <option value="BTCUSD">Bitcoin (비트코인)</option>
+                    <option value="NAS100">NASDAQ 100 (나스닥)</option>
+                  </select>
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-5">
-                <div className="w-10 h-10 shrink-0 bg-slate-800 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-inner">2</div>
-                <div>
-                  <h4 className="text-white font-bold text-lg mb-2">{t('step2Title')}</h4>
-                  <p className="text-sm text-slate-400 leading-relaxed">
-                    {t('step2Desc')}
-                  </p>
-                </div>
+
+                <button
+                  onClick={startSimScan}
+                  disabled={simStatus === 'scanning'}
+                  className={`w-full py-3 rounded-xl text-xs font-black tracking-widest uppercase transition-all duration-300 ${
+                    simStatus === 'scanning'
+                      ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                      : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-[1.02] cursor-pointer'
+                  }`}
+                >
+                  {simStatus === 'scanning' ? t('simScanning') : t('simBtn')}
+                </button>
+
+                {/* Simulation Result Overlay Panel */}
+                {simStatus === 'success' && (
+                  <div className="border border-emerald-500/20 bg-emerald-500/5 p-4 rounded-xl space-y-3 animate-in fade-in duration-300">
+                    <span className="text-[9px] text-emerald-400 font-black tracking-widest uppercase block border-b border-emerald-500/10 pb-1.5">
+                      {t('simResultTitle')}
+                    </span>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-850">
+                        <span className="text-[8px] text-slate-500 font-bold uppercase block">Entry</span>
+                        <span className="text-xs font-mono font-black text-white">{simData[simAsset].entry}</span>
+                      </div>
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-850">
+                        <span className="text-[8px] text-slate-500 font-bold uppercase block text-emerald-400">TP</span>
+                        <span className="text-xs font-mono font-black text-emerald-400">{simData[simAsset].tp}</span>
+                      </div>
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-850">
+                        <span className="text-[8px] text-slate-500 font-bold uppercase block text-rose-400">SL</span>
+                        <span className="text-xs font-mono font-black text-rose-400">{simData[simAsset].sl}</span>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-300 leading-relaxed font-semibold">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-slate-400 font-bold">감지 구조:</span>
+                        <span className="text-cyan-400 font-black">{simData[simAsset].pattern}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-bold">트렌드:</span>
+                        <span className="font-black">{simData[simAsset].trend}</span>
+                      </div>
+                      <p className="mt-2 text-slate-400 border-t border-slate-850 pt-2 font-normal">{simData[simAsset].reason}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-start gap-5 relative">
-                <div className="w-10 h-10 shrink-0 bg-cyan-500/20 border border-cyan-500/30 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-[0_0_15px_rgba(6,182,212,0.3)]">3</div>
-                <div>
-                  <h4 className="text-white font-bold text-lg mb-2">{t('step3Title')}</h4>
-                  <p className="text-sm text-slate-400 leading-relaxed mb-6">
-                    {t('step3Desc')}
-                  </p>
-                  
-                  <Link 
-                    href="/dashboard" 
-                    className="inline-flex px-6 py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl text-sm font-extrabold transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] cursor-pointer"
-                  >
-                    대시보드에서 체험하기
-                  </Link>
+              {/* Static Step Descriptions */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 font-bold text-xs shrink-0">1</div>
+                  <span className="text-xs font-bold text-white">{t('step1Title')}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 font-bold text-xs shrink-0">2</div>
+                  <span className="text-xs font-bold text-white">{t('step2Title')}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-xs shrink-0">3</div>
+                  <span className="text-xs font-bold text-cyan-400">{t('step3Title')}</span>
                 </div>
               </div>
             </div>
@@ -406,84 +538,91 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-          {/* Plan 1: Free */}
+          {/* Plan 1: Basic */}
           <div className="glass-card glass-card-hover rounded-3xl p-8 md:p-10 flex flex-col justify-between">
             <div>
-              <span className="text-[10px] md:text-xs font-bold text-slate-300 bg-slate-900 border border-white/5 px-3 py-1 rounded-md uppercase tracking-wider">Free Tier</span>
+              <span className="text-[10px] md:text-xs font-bold text-slate-300 bg-slate-900 border border-white/5 px-3 py-1 rounded-md uppercase tracking-wider">{t('planBasic')}</span>
               <div className="mt-5 flex items-baseline text-white">
-                <span className="text-4xl md:text-5xl font-black">$0</span>
-                <span className="text-sm text-slate-500 ml-1.5 font-medium">/ 무료</span>
+                <span className="text-4xl md:text-5xl font-black">{t('planBasicPrice')}</span>
+                <span className="text-sm text-slate-500 ml-1.5 font-medium">{t('planBasicPeriod')}</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">기본 플랜</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planBasicTitle')}</h3>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed mb-8">
-                ULTRAPLEX Ai Signal의 기본 차트 분석을 체험해 보세요.
+                {t('planBasicDesc')}
               </p>
             </div>
             <ul className="space-y-4 pt-6 border-t border-white/10 text-xs md:text-sm text-slate-300 mb-8">
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 하루 1회 AI 차트 분석 무료 체험</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planBasicFeat1')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planBasicFeat2')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planBasicFeat3')}</li>
             </ul>
-            <button 
-              onClick={scrollToAnalysis}
-              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer"
+            <Link 
+              href="/signup"
+              className="w-full text-center py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer block"
             >
-              무료 체험하기
-            </button>
+              {t('planBasicBtn')}
+            </Link>
           </div>
 
-          {/* Plan 2: Standard */}
+          {/* Plan 2: Lifetime */}
           <div className="glass-card glass-card-hover rounded-3xl p-8 md:p-10 flex flex-col justify-between">
             <div>
-              <span className="text-[10px] md:text-xs font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-md uppercase tracking-wider">Standard</span>
+              <span className="text-[10px] md:text-xs font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-md uppercase tracking-wider">{t('planLifetime')}</span>
               <div className="mt-5 flex items-baseline text-white">
-                <span className="text-4xl md:text-5xl font-black">$15</span>
-                <span className="text-sm text-slate-500 ml-1.5 font-medium">/ 월</span>
+                <span className="text-4xl md:text-5xl font-black">{t('planLifetimePrice')}</span>
+                <span className="text-sm text-slate-500 ml-1.5 font-medium">{t('planLifetimePeriod')}</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">스탠다드 플랜</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planLifetimeTitle')}</h3>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed mb-8">
-                데일리 트레이딩을 위한 고확률 시나리오 분석.
+                {t('planLifetimeDesc')}
               </p>
             </div>
             <ul className="space-y-4 pt-6 border-t border-white/10 text-xs md:text-sm text-slate-300 mb-8">
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 하루 10회 고확률 시나리오 분석</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 기본 고객 지원</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planLifetimeFeat1')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planLifetimeFeat2')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planLifetimeFeat3')}</li>
             </ul>
-            <button 
-              onClick={scrollToAnalysis}
-              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer"
+            <Link 
+              href="/signup"
+              className="w-full text-center py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer block"
             >
-              스탠다드 구독하기
-            </button>
+              {t('planLifetimeBtn')}
+            </Link>
           </div>
 
-          {/* Plan 3: Premium (Highlighted) */}
-          <div className="bg-slate-950/65 backdrop-blur-2xl border-2 border-cyan-500 rounded-3xl p-8 md:p-10 shadow-[0_0_35px_rgba(6,182,212,0.15)] flex flex-col justify-between relative transform lg:-translate-y-4 hover:shadow-[0_0_50px_rgba(6,182,212,0.25)] transition-all duration-300">
-            <div className="absolute top-[-14px] right-8 bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg shadow-cyan-400/25">
-              가장 인기있는 플랜
+          {/* Plan 3: Partner Plan (Highlighted BEST VALUE with Pulser Neon Border) */}
+          <div className="bg-slate-950/65 backdrop-blur-2xl border-2 border-cyan-500 rounded-3xl p-8 md:p-10 shadow-[0_0_35px_rgba(6,182,212,0.2)] flex flex-col justify-between relative transform lg:-translate-y-4 hover:shadow-[0_0_55px_rgba(6,182,212,0.3)] transition-all duration-300 overflow-hidden group">
+            {/* Pulsing neon highlight line on top */}
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-500 animate-pulse" />
+            
+            <div className="absolute top-[16px] right-8 bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg shadow-cyan-400/25">
+              {t('planPartnerHighlight')}
             </div>
             
-            <div>
-              <span className="text-[10px] md:text-xs font-bold text-cyan-400 bg-cyan-550/15 px-3 py-1 rounded-md uppercase tracking-wider">Premium</span>
+            <div className="pt-2">
+              <span className="text-[10px] md:text-xs font-bold text-cyan-400 bg-cyan-550/15 px-3 py-1 rounded-md uppercase tracking-wider">{t('planPartner')}</span>
               <div className="mt-5 flex items-baseline text-cyan-400">
-                <span className="text-4xl md:text-5xl font-black">$30</span>
-                <span className="text-sm text-cyan-500/70 ml-1.5 font-medium">/ 월</span>
+                <span className="text-4xl md:text-5xl font-black">{t('planPartnerPrice')}</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">프리미엄 플랜</h3>
-              <p className="text-sm md:text-base text-slate-300 leading-relaxed mb-8">
-                전문 기관급 트레이딩을 위한 무제한 지원과 멘토링.
+              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planPartnerTitle')}</h3>
+              <p className="text-sm md:text-base text-slate-350 leading-relaxed mb-8">
+                {t('planPartnerDesc')}
               </p>
             </div>
             
             <ul className="space-y-4 pt-6 border-t border-cyan-500/20 text-xs md:text-sm text-slate-200 mb-8">
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 하루 50회 초정밀 SMC 분석</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> VIP 1:1 에이전트 밀착 멘토링</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat1')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat2')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat3')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat4')}</li>
             </ul>
             
-            <button 
-              onClick={scrollToAnalysis}
-              className="w-full py-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl text-xs md:text-sm font-extrabold transition-all shadow-md shadow-cyan-400/10 btn-glow-cyan cursor-pointer"
+            <Link 
+              href="/signup"
+              className="w-full text-center py-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl text-xs md:text-sm font-extrabold transition-all shadow-md shadow-cyan-400/10 btn-glow-cyan block"
             >
-              프리미엄 구독하기
-            </button>
+              {t('planPartnerBtn')}
+            </Link>
           </div>
         </div>
       </section>
