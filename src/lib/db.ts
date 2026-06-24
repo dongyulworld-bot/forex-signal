@@ -17,6 +17,9 @@ export interface User {
   name: string;
   password?: string | null;
   agentId: string | null;
+  tier: string;
+  dailyScanCount: number;
+  lastScanDate: string | null;
   createdAt: string;
 }
 
@@ -50,13 +53,16 @@ export interface AnalysisHistory {
   createdAt: string;
 }
 
-export interface Mt5Sync {
+
+
+export interface PaymentTransaction {
   id: string;
   userId: string;
-  mt5Login: string;
-  tradingVolume: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  syncedAt: string;
+  planName: string;
+  amount: number;
+  txId: string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -67,7 +73,8 @@ type MockDb = {
   users: User[];
   analyses: ChartAnalysis[];
   analysisHistories: AnalysisHistory[];
-  mt5Syncs: Mt5Sync[];
+  paymentTransactions: PaymentTransaction[];
+  superAdminEmail?: string;
 };
 
 const mockDb: MockDb = {
@@ -75,7 +82,8 @@ const mockDb: MockDb = {
   users: [],
   analyses: [],
   analysisHistories: [],
-  mt5Syncs: [],
+  paymentTransactions: [],
+  superAdminEmail: 'dongyulworld@gmail.com',
 };
 
 let mockDbInitialized = false;
@@ -110,7 +118,8 @@ function initMockDb() {
       mockDb.users            = data.users            || [];
       mockDb.analyses         = data.analyses         || [];
       mockDb.analysisHistories = data.analysisHistories || [];
-      mockDb.mt5Syncs         = data.mt5Syncs         || [];
+      mockDb.paymentTransactions = data.paymentTransactions || [];
+      mockDb.superAdminEmail  = data.superAdminEmail  || 'dongyulworld@gmail.com';
     }
   } catch (e) {
     console.warn('[MockDB] Could not read db_fallback.json, starting fresh.', e);
@@ -252,6 +261,9 @@ export const dbService = {
       name,
       password: password || null,
       agentId: assignedAgentId,
+      tier: 'FREE',
+      dailyScanCount: 0,
+      lastScanDate: null,
       createdAt: new Date().toISOString(),
     };
 
@@ -379,56 +391,99 @@ export const dbService = {
     return newAnalysis;
   },
 
-  // ── MT5 Sync ─────────────────────────────────────────────────────────────────
+  // ── User Tier & Limit ────────────────────────────────────────────────────────
 
-  async getMt5Syncs(): Promise<Mt5Sync[]> {
-    return trySupabase(
-      () => supabase!.from('Mt5Sync').select('*'),
-      () => mockDb.mt5Syncs,
-    );
-  },
-
-  async upsertMt5Sync(
-    userId: string,
-    mt5Login: string,
-    tradingVolume: number,
-    status: 'PENDING' | 'APPROVED' | 'REJECTED',
-  ): Promise<Mt5Sync> {
-    const now = new Date().toISOString();
-
+  async updateUserTier(userId: string, tier: string): Promise<User | null> {
+    initMockDb();
     if (supabase) {
       try {
         const { data, error } = await supabase
-          .from('Mt5Sync')
-          .upsert(
-            { userId, mt5Login, tradingVolume, status, updatedAt: now },
-            { onConflict: 'mt5Login' },
-          )
+          .from('User')
+          .update({ tier })
+          .eq('id', userId)
           .select()
           .single();
-        if (!error && data) return data as Mt5Sync;
+        if (!error && data) return data as User;
       } catch { /* fall through */ }
     }
 
-    initMockDb();
-    const idx = mockDb.mt5Syncs.findIndex(m => m.mt5Login === mt5Login);
-    let record: Mt5Sync;
+    const idx = mockDb.users.findIndex(u => u.id === userId);
     if (idx > -1) {
-      record = { ...mockDb.mt5Syncs[idx], tradingVolume, status, updatedAt: now };
-      mockDb.mt5Syncs[idx] = record;
-    } else {
-      record = {
-        id: `sync-${Math.random().toString(36).substr(2, 9)}`,
-        userId,
-        mt5Login,
-        tradingVolume,
-        status,
-        syncedAt: now,
-        updatedAt: now,
-      };
-      mockDb.mt5Syncs.push(record);
+      mockDb.users[idx].tier = tier;
+      saveMockDb();
+      return mockDb.users[idx];
     }
+    return null;
+  },
+
+  async incrementUserScanCount(userId: string): Promise<User | null> {
+    initMockDb();
+    const today = new Date().toISOString().split('T')[0];
+
+    if (supabase) {
+      try {
+        // First get user
+        const { data: user } = await supabase.from('User').select('*').eq('id', userId).single();
+        if (user) {
+          const isSameDay = user.lastScanDate && user.lastScanDate.startsWith(today);
+          const newCount = isSameDay ? user.dailyScanCount + 1 : 1;
+          const { data, error } = await supabase
+            .from('User')
+            .update({ dailyScanCount: newCount, lastScanDate: new Date().toISOString() })
+            .eq('id', userId)
+            .select()
+            .single();
+          if (!error && data) return data as User;
+        }
+      } catch { /* fall through */ }
+    }
+
+    const idx = mockDb.users.findIndex(u => u.id === userId);
+    if (idx > -1) {
+      const user = mockDb.users[idx];
+      const isSameDay = user.lastScanDate && user.lastScanDate.startsWith(today);
+      mockDb.users[idx].dailyScanCount = isSameDay ? user.dailyScanCount + 1 : 1;
+      mockDb.users[idx].lastScanDate = new Date().toISOString();
+      saveMockDb();
+      return mockDb.users[idx];
+    }
+    return null;
+  },
+
+  async getSuperAdminEmail(): Promise<string> {
+    initMockDb();
+    return mockDb.superAdminEmail || 'dongyulworld@gmail.com';
+  },
+
+  async setSuperAdminEmail(email: string): Promise<string> {
+    initMockDb();
+    mockDb.superAdminEmail = email;
     saveMockDb();
-    return record;
+    return email;
+  },
+
+  // ── Payment Transactions ──────────────────────────────────────────────────
+
+  async createPaymentTransaction(data: { userId: string; planName: string; amount: number; txId: string }): Promise<PaymentTransaction> {
+    const now = new Date().toISOString();
+    const newTx: PaymentTransaction = {
+      ...data,
+      id: `pay-${Math.random().toString(36).substr(2, 9)}`,
+      status: 'PENDING',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (supabase) {
+      try {
+        const { data: result, error } = await supabase.from('PaymentTransaction').insert([newTx]).select().single();
+        if (!error && result) return result as PaymentTransaction;
+      } catch { /* fall through to mock db */ }
+    }
+
+    initMockDb();
+    mockDb.paymentTransactions.push(newTx);
+    saveMockDb();
+    return newTx;
   },
 };

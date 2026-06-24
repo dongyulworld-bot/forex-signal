@@ -34,16 +34,35 @@ export default async function DashboardPage() {
     planBEntryPrice: h.planBEntryPrice,
     status: h.status,
     createdAt: h.createdAt,
+    resultJson: h.resultJson,
   }));
+
+  // Calculate today's usage and limit
+  const users = await dbService.getUsers();
+  const user = users.find(u => u.id === sessionPayload.userId);
+  
+  const TIER_LIMITS: Record<string, number> = {
+    FREE: 1,
+    STANDARD: 10,
+    PREMIUM: 50,
+    LIFETIME: 9999,
+    PARTNER: 9999
+  };
+  
+  const tier = user?.tier || 'FREE';
+  const limit = user ? (TIER_LIMITS[tier] || 1) : 1;
+  const today = new Date().toISOString().split('T')[0];
+  const isSameDay = user?.lastScanDate && user.lastScanDate.startsWith(today);
+  const todayScanCount = isSameDay ? (user?.dailyScanCount || 0) : 0;
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">대시보드</h1>
-        <p className="text-slate-400 mt-2">최근 분석 스캔 기록 요약 및 계정 활동 통계를 한눈에 확인하세요.</p>
-      </div>
-
-      <DashboardClient initialHistories={serializedHistories} />
+      <DashboardClient 
+        initialHistories={serializedHistories}
+        todayScanCount={todayScanCount}
+        dailyLimit={limit}
+        userTier={tier}
+      />
     </div>
   );
 }

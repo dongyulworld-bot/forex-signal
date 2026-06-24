@@ -12,14 +12,14 @@ export async function GET() {
     const agents = await dbService.getAgents();
     const users = await dbService.getUsers();
     const analyses = await dbService.getChartAnalyses();
-    const mt5Syncs = await dbService.getMt5Syncs();
+    const superAdminEmail = await dbService.getSuperAdminEmail();
 
     return NextResponse.json({
       success: true,
       agents,
       users,
       analyses,
-      mt5Syncs,
+      superAdminEmail,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -50,14 +50,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, agent: newAgent });
     }
 
-    if (action === 'simulate_mt5') {
-      const { userId, mt5Login, tradingVolume, status } = body;
-      if (!userId || !mt5Login || typeof tradingVolume !== 'number' || !status) {
-        return NextResponse.json({ error: 'Missing parameters for MT5 simulation.' }, { status: 400 });
+    if (action === 'update_user_tier') {
+      const { userId, tier } = body;
+      if (!userId || !tier) {
+        return NextResponse.json({ error: 'Missing userId or tier.' }, { status: 400 });
       }
       
-      const record = await dbService.upsertMt5Sync(userId, mt5Login, tradingVolume, status);
-      return NextResponse.json({ success: true, record });
+      const updatedUser = await dbService.updateUserTier(userId, tier);
+      return NextResponse.json({ success: true, user: updatedUser });
     }
 
     if (action === 'create_user') {
@@ -67,6 +67,15 @@ export async function POST(request: Request) {
       }
       const newUser = await dbService.createUser(email, name);
       return NextResponse.json({ success: true, user: newUser });
+    }
+
+    if (action === 'update_super_admin') {
+      const { email } = body;
+      if (!email) {
+        return NextResponse.json({ error: 'Missing email.' }, { status: 400 });
+      }
+      await dbService.setSuperAdminEmail(email);
+      return NextResponse.json({ success: true, superAdminEmail: email });
     }
 
     return NextResponse.json({ error: 'Unknown action request.' }, { status: 400 });

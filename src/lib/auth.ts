@@ -19,7 +19,7 @@ function base64urlDecode(str: string): string {
 /**
  * Generate a signed session JWT token using Web Crypto API.
  */
-export async function createSessionToken(payload: { userId: string; email: string; name: string }, expiryDays = 7): Promise<string> {
+export async function createSessionToken(payload: { userId: string; email: string; name: string; isSuperAdmin?: boolean }, expiryDays = 7): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' };
   const exp = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60;
   const fullPayload = { ...payload, exp };
@@ -64,7 +64,7 @@ export async function createSessionToken(payload: { userId: string; email: strin
 /**
  * Verify a signed session JWT token using Web Crypto API.
  */
-export async function verifySessionToken(token: string): Promise<{ userId: string; email: string; name: string } | null> {
+export async function verifySessionToken(token: string): Promise<{ userId: string; email: string; name: string; isSuperAdmin?: boolean } | null> {
   if (!token) return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;

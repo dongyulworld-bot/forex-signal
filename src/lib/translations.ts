@@ -162,6 +162,54 @@ export const translations = {
     logTrend: '트렌드',
     logPlanA: '플랜 A',
     logPlanB: '플랜 B',
+    
+    // Dashboard & Sidebar
+    sidebarDashboard: '대시보드',
+    sidebarScan: 'AI 차트 스캔',
+    sidebarHistory: '분석 히스토리',
+    sidebarBilling: '결제 (Billing)',
+    sidebarProfile: '내 정보',
+    sidebarSignOut: '로그아웃',
+    sidebarSignedInAs: '로그인 계정:',
+    
+    // Dashboard Main Page
+    dashOverviewTitle: '대시보드',
+    dashOverviewSub: '최근 분석 스캔 기록 요약 및 계정 활동 통계를 한눈에 확인하세요.',
+    dashSummary: '요약 통계',
+    dashTotalScan: '총 스캔 횟수',
+    dashAvgWin: '평균 예상 상승 확률',
+    dashTopMarket: '주요 분석 시장',
+    dashTrend: '트렌드 추이',
+    dashNoData: '데이터 없음',
+    dashRecentScan: '최근 분석 기록',
+    dashNoScan: '아직 분석 기록이 없습니다.',
+    dashStatusComplete: '완료됨',
+    
+    // Scan Page
+    scanTitle: '새로운 차트 스캔',
+    scanSub: '분석할 차트 이미지를 업로드하고 실시간으로 AI 진단 결과를 확인하세요.',
+    scanConfig: '스캔 설정',
+    scanMarketSelect: '거래 시장 선택',
+    scanMarketHint: '선택한 시장 데이터에 최적화된 필터가 적용됩니다.',
+    scanImageUpload: '차트 이미지 업로드',
+    scanImageDrag: '이미지 드래그 앤 드롭 또는 클릭하여 업로드',
+    scanImageFormat: 'PNG, JPG, JPEG 지원 (최대 10MB)',
+    scanStartBtn: 'AI 차트 스캔 시작',
+    scanErrorFormat: '이미지 파일(PNG, JPG, JPEG)만 업로드할 수 있습니다.',
+    scanErrorNoFile: '분석할 차트 이미지를 선택해주세요.',
+    
+    // History Page
+    historyTitle: 'AI 분석 히스토리',
+    historySub: '과거에 요청한 모든 차트 분석 결과와 시나리오를 다시 확인할 수 있습니다.',
+    historyTableDate: '스캔 날짜',
+    historyTableMarket: '시장',
+    historyTableTrend: 'AI 트렌드 진단',
+    historyTablePlanA: 'Plan A (상승)',
+    historyTablePlanB: 'Plan B (하락)',
+    historyTableView: '상세보기',
+    historyModalTitle: 'AI 차트 정밀 진단서',
+    historyModalEntry: '추천 매매가 (Entry & Target)',
+    historyModalClose: '닫기',
   },
   en: {
     // Header
@@ -324,5 +372,53 @@ export const translations = {
     logTrend: 'Trend',
     logPlanA: 'Plan A',
     logPlanB: 'Plan B',
+
+    // Dashboard & Sidebar
+    sidebarDashboard: 'Dashboard',
+    sidebarScan: 'AI Chart Scan',
+    sidebarHistory: 'Analysis History',
+    sidebarBilling: 'Billing',
+    sidebarProfile: 'My Profile',
+    sidebarSignOut: 'Logout',
+    sidebarSignedInAs: 'Signed in as',
+    
+    // Dashboard Main Page
+    dashOverviewTitle: 'Dashboard',
+    dashOverviewSub: 'View a summary of your recent analysis scans and account activity statistics at a glance.',
+    dashSummary: 'Summary Stats',
+    dashTotalScan: 'Total Scans',
+    dashAvgWin: 'Avg Plan A Prob.',
+    dashTopMarket: 'Top Market',
+    dashTrend: 'Trend Flow',
+    dashNoData: 'No Data',
+    dashRecentScan: 'Recent Scans',
+    dashNoScan: 'No analysis history yet.',
+    dashStatusComplete: 'Completed',
+    
+    // Scan Page
+    scanTitle: 'New Chart Scan',
+    scanSub: 'Upload a chart image to be analyzed and check AI diagnostic results in real-time.',
+    scanConfig: 'Scan Settings',
+    scanMarketSelect: 'Select Market',
+    scanMarketHint: 'Optimized filters will be applied for the selected market data.',
+    scanImageUpload: 'Upload Chart Image',
+    scanImageDrag: 'Drag & drop image here or click to upload',
+    scanImageFormat: 'Supports PNG, JPG, JPEG (Max 10MB)',
+    scanStartBtn: 'Start AI Chart Scan',
+    scanErrorFormat: 'Only image files (PNG, JPG, JPEG) are allowed.',
+    scanErrorNoFile: 'Please select a chart image to analyze.',
+    
+    // History Page
+    historyTitle: 'AI Analysis History',
+    historySub: 'Review all past chart analysis results and trading scenarios.',
+    historyTableDate: 'Scan Date',
+    historyTableMarket: 'Market',
+    historyTableTrend: 'AI Trend Diagnosis',
+    historyTablePlanA: 'Plan A (Bullish)',
+    historyTablePlanB: 'Plan B (Bearish)',
+    historyTableView: 'View Details',
+    historyModalTitle: 'AI Chart Diagnostic Report',
+    historyModalEntry: 'Entry & Target',
+    historyModalClose: 'Close',
   }
 };

@@ -28,10 +28,12 @@ export async function POST(request: Request) {
     const hashedPassword = hashPassword(password);
     const user = await dbService.createUser(email, name, hashedPassword);
 
+    const superAdminEmail = await dbService.getSuperAdminEmail();
     const token = await createSessionToken({
       userId: user.id,
       email: user.email,
       name: user.name,
+      isSuperAdmin: user.email === superAdminEmail,
     });
 
     const response = NextResponse.json({

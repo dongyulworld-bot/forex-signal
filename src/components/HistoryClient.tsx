@@ -1,7 +1,38 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Calendar, TrendingUp, TrendingDown, X, Eye, Activity } from 'lucide-react';
+import { Search, Calendar, TrendingUp, TrendingDown, X, Eye, Activity, AlertTriangle, ChevronDown, Zap, Crosshair } from 'lucide-react';
+
+const cleanSymbol = (sym: string) => sym.includes(':') ? sym.split(':')[1] : sym;
+
+const PRICE_DECIMALS: Record<string, number> = {
+  'OANDA:EURUSD':    5,
+  'OANDA:GBPUSD':    5,
+  'OANDA:USDJPY':    3,
+  'OANDA:AUDUSD':    5,
+  'OANDA:XAUUSD':    2,
+  'OANDA:XAGUSD':    3,
+  'OANDA:BTCUSD':    1,
+  'OANDA:NAS100USD': 1,
+  'OANDA:HK50':      0,
+};
+
+const formatPrice = (price: unknown, sym: string): string => {
+  if (price === undefined || price === null || price === '' || price === '-') return '-';
+  const num = typeof price === 'number' ? price : parseFloat(String(price).replace(/,/g, ''));
+  if (isNaN(num)) return String(price);
+  const decimals = PRICE_DECIMALS[sym] ?? 5;
+  return num.toFixed(decimals);
+};
+
+const formatDecimalsInString = (str: string, sym: string): string => {
+  if (!str) return str;
+  const decimals = PRICE_DECIMALS[sym] ?? 5;
+  return str.replace(/\b\d+\.\d+\b(?!%)/g, (match) => {
+    const num = parseFloat(match);
+    return isNaN(num) ? match : num.toFixed(decimals);
+  });
+};
 
 interface HistoryItem {
   id: string;
@@ -17,13 +48,16 @@ interface HistoryItem {
   planBEntryPrice: string;
   status: string;
   createdAt: string;
+  resultJson?: string | null;
 }
 
 interface HistoryClientProps {
   initialHistories: HistoryItem[];
+  todayScanCount: number;
+  dailyLimit: number;
 }
 
-export default function HistoryClient({ initialHistories }: HistoryClientProps) {
+export default function HistoryClient({ initialHistories, todayScanCount, dailyLimit }: HistoryClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
@@ -46,18 +80,31 @@ export default function HistoryClient({ initialHistories }: HistoryClientProps) 
 
   return (
     <div className="space-y-6">
-      {/* Search Filter Bar */}
-      <div className="relative max-w-md">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-          <Search className="w-4 h-4" />
+      {/* Search Filter Bar & Usage Stats */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="relative max-w-md w-full">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+            <Search className="w-4 h-4" />
+          </div>
+          <input
+            type="text"
+            placeholder="종목명 또는 트렌드 내용 검색..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-white placeholder-slate-600 transition-all text-sm"
+          />
         </div>
-        <input
-          type="text"
-          placeholder="종목명 또는 트렌드 내용 검색..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none text-white placeholder-slate-600 transition-all text-sm"
-        />
+        <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 px-4 py-2.5 rounded-xl shrink-0">
+          <Activity className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-bold text-slate-300">오늘 사용횟수:</span>
+          <span className="text-sm font-black text-white ml-1">
+            <span className={todayScanCount >= dailyLimit ? "text-pink-400" : "text-cyan-400"}>
+              {todayScanCount}
+            </span>
+            <span className="text-slate-500 font-normal mx-1">/</span>
+            {dailyLimit >= 9999 ? '무제한' : dailyLimit}
+          </span>
+        </div>
       </div>
 
       {/* History Table Container */}
@@ -97,7 +144,7 @@ export default function HistoryClient({ initialHistories }: HistoryClientProps) 
                       </td>
                       <td className="px-6 py-5 text-sm text-white font-bold whitespace-nowrap">
                         <span className="bg-slate-900 border border-slate-800 px-3 py-1 rounded-lg">
-                          {item.market}
+                          {cleanSymbol(item.market)}
                         </span>
                       </td>
                       <td className="px-6 py-5 text-sm whitespace-nowrap">
@@ -158,7 +205,7 @@ export default function HistoryClient({ initialHistories }: HistoryClientProps) 
                   AI 차트 정밀 진단서
                 </span>
                 <h3 className="text-lg font-bold text-white mt-1.5 flex items-center gap-2">
-                  {selectedItem.market} 스캔 기록
+                  {cleanSymbol(selectedItem.market)} 스캔 기록
                   <span className="text-xs text-slate-500 font-normal">
                     ({formatDate(selectedItem.createdAt)})
                   </span>
@@ -174,87 +221,226 @@ export default function HistoryClient({ initialHistories }: HistoryClientProps) 
 
             {/* Modal Scrollable Body */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
-              
-              {/* Image Preview & Trend */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                {/* Uploaded Chart Image */}
-                <div className="md:col-span-5 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-inner">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={selectedItem.imageUrl}
-                    alt="Analyzed Chart"
-                    className="w-full h-40 md:h-48 object-cover"
-                  />
-                  <div className="bg-slate-950 p-3 text-center border-t border-slate-900">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">분석에 사용된 이미지</span>
-                  </div>
-                </div>
+              {(() => {
+                let parsedResult = null;
+                if (selectedItem.resultJson) {
+                  try { parsedResult = JSON.parse(selectedItem.resultJson); } catch {}
+                }
 
-                {/* Trend Summary */}
-                <div className="md:col-span-7 bg-slate-950/50 border border-slate-850 p-5 rounded-xl flex flex-col justify-between h-full min-h-[160px]">
-                  <div>
-                    <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">
-                      <Activity className="w-4 h-4" />
-                      추세 판단 결과
-                    </div>
-                    <p className="text-sm font-semibold text-white leading-relaxed">
-                      {selectedItem.trend}
-                    </p>
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-4 border-t border-slate-900 pt-3">
-                    * 이 분석은 해당 시점 기준의 기술 지표 및 캔들 배열을 종합 판독한 내용입니다.
-                  </div>
-                </div>
-              </div>
+                if (parsedResult) {
+                  // Dopamine UI
+                  const { fakeout_warning, action_tag, plan_alpha, plan_a, risk_management, order_block_zone, price_context, thesis, multi_timeframe_analysis } = parsedResult;
+                  const planA = plan_a || plan_alpha;
+                  const action = thesis?.action || action_tag;
+                  const reasoningList: string[] = thesis?.reasoning_list || (thesis?.reasoning ? [thesis.reasoning] : []);
 
-              {/* Plans A and B scenarios */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                {/* Plan A */}
-                <div className="bg-slate-950/30 border border-slate-800/80 p-5 rounded-xl flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full">
-                        플랜 A (상승 시나리오)
-                      </span>
-                      <span className="text-xl font-black text-cyan-400 font-mono">
-                        {selectedItem.planAProbability}%
-                      </span>
-                    </div>
-                    <p className="text-xs md:text-sm text-slate-350 leading-relaxed">
-                      {selectedItem.planAScenario}
-                    </p>
-                  </div>
-                  {selectedItem.planAEntryPrice && (
-                    <div className="border-t border-slate-900 pt-3 mt-4">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">매수 진입 가격대 (Entry)</span>
-                      <p className="text-xs md:text-sm font-bold text-white mt-0.5">{selectedItem.planAEntryPrice}</p>
-                    </div>
-                  )}
-                </div>
+                  return (
+                    <div className="space-y-6">
+                      {/* Fakeout Warning & Action Tag */}
+                      {(fakeout_warning?.detected || action) && (
+                        <div className="space-y-3">
+                          {fakeout_warning?.detected && (
+                            <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 flex items-center gap-4 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                              <AlertTriangle className="w-8 h-8 text-red-500 shrink-0" />
+                              <div>
+                                <h4 className="text-red-500 font-black text-lg">🚨 긴급 AI 스윕(Sweep) 경고</h4>
+                                <p className="text-red-200 text-sm font-medium">{fakeout_warning.message}</p>
+                              </div>
+                            </div>
+                          )}
+                          {action && (
+                            <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 text-center">
+                              <span className="text-indigo-300 font-bold tracking-wider">{action}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                {/* Plan B */}
-                <div className="bg-slate-950/30 border border-slate-800/80 p-5 rounded-xl flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full">
-                        플랜 B (하락 시나리오)
-                      </span>
-                      <span className="text-xl font-black text-indigo-400 font-mono">
-                        {selectedItem.planBProbability}%
-                      </span>
+                      {/* HUGE NUMBERS */}
+                      <div className="bg-slate-950 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+                        {/* Glow effect */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none" />
+                        
+                        <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16 relative z-10">
+                          {/* SL */}
+                          <div className="text-center">
+                            <span className="text-rose-500/70 text-sm font-bold uppercase tracking-widest mb-2 block">Stop Loss (손절가)</span>
+                            <div className="text-5xl md:text-6xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.4)]">
+                              {formatPrice(planA?.sl, selectedItem.market)}
+                            </div>
+                          </div>
+
+                          {/* ENTRY */}
+                          <div className="text-center relative">
+                            <div className="absolute -inset-4 bg-white/5 blur-2xl rounded-full" />
+                            <span className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center justify-center gap-1">
+                              <Crosshair className="w-4 h-4" /> Entry (진입가)
+                            </span>
+                            <div className="text-6xl md:text-7xl font-black text-white drop-shadow-[0_0_25px_rgba(255,255,255,0.5)] tracking-tighter">
+                              {formatPrice(planA?.entry, selectedItem.market)}
+                            </div>
+                          </div>
+
+                          {/* TP */}
+                          <div className="text-center">
+                            <span className="text-emerald-400/70 text-sm font-bold uppercase tracking-widest mb-2 block">Target Profit (목표가)</span>
+                            <div className="text-5xl md:text-6xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.4)]">
+                              {formatPrice(planA?.tp, selectedItem.market)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Technical Analysis Reasons */}
+                      {reasoningList && reasoningList.length > 0 && (
+                        <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl">
+                          <h4 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-cyan-400" />
+                            AI 기술적 분석 근거 (5대 핵심 요인)
+                          </h4>
+                          <ul className="space-y-3">
+                            {reasoningList.map((reason, idx) => (
+                              <li key={idx} className="text-slate-300 text-xs md:text-sm flex gap-2.5 items-start">
+                                <span className="flex items-center justify-center w-5 h-5 rounded bg-cyan-950 border border-cyan-800 text-cyan-400 font-bold text-xs shrink-0 mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <span className="leading-relaxed">{reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Multi-Timeframe Chart Flow Matrix */}
+                      {multi_timeframe_analysis && typeof multi_timeframe_analysis === 'object' && (
+                        <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl space-y-4">
+                          <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-cyan-400" />
+                            주변 타임프레임 차트 흐름 분석 (Multi-Timeframe Flow)
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(multi_timeframe_analysis as Record<string, { trend?: string; flow_analysis?: string } | null | undefined>).map(([tf, tfData]) => {
+                              const isBullish = tfData?.trend === 'BULLISH';
+                              const isBearish = tfData?.trend === 'BEARISH';
+                              return (
+                                <div key={tf} className="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl space-y-2 flex flex-col justify-between">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-white font-bold text-xs">{tf === '1d' ? '일봉 (1D)' : tf === '1h' ? '1시간봉 (1H)' : tf === '30m' ? '30분봉 (30m)' : '5분봉 (5m)'}</span>
+                                    <span className={`text-[9px] font-black tracking-widest px-2 py-0.5 rounded ${
+                                      isBullish ? 'bg-green-500/20 text-green-400' :
+                                      isBearish ? 'bg-red-500/20 text-red-400' :
+                                      'bg-slate-500/20 text-slate-400'
+                                    }`}>
+                                      {tfData?.trend || 'NEUTRAL'}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-400 text-xs leading-relaxed">
+                                    {tfData?.flow_analysis || '데이터 없음'}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* R:R Gauge Bar */}
+                      <div className="bg-slate-900/50 border border-slate-800 p-5 rounded-2xl">
+                        <div className="flex justify-between items-end mb-3">
+                          <span className="text-sm font-bold text-slate-300">손익비 (Risk : Reward)</span>
+                          <span className="text-xs text-slate-500">{risk_management}</span>
+                        </div>
+                        <div className="w-full h-4 rounded-full overflow-hidden flex border border-slate-800 shadow-inner">
+                          {/* We assume standard 1:3 ratio for visuals if exact numbers aren't parseable */}
+                          <div className="w-1/4 h-full bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.5)] relative">
+                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:10px_10px]" />
+                          </div>
+                          <div className="w-3/4 h-full bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-[0_0_10px_rgba(52,211,153,0.5)] relative">
+                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:10px_10px]" />
+                          </div>
+                        </div>
+                        <div className="flex justify-between mt-2 text-[10px] font-bold uppercase tracking-widest">
+                          <span className="text-rose-500">Risk (잃을 금액)</span>
+                          <span className="text-emerald-400">Reward (벌게 될 금액)</span>
+                        </div>
+                      </div>
+
+                      {/* Detailed Analysis Accordion */}
+                      <details className="group bg-slate-900/30 border border-slate-800 rounded-2xl overflow-hidden">
+                        <summary className="flex items-center justify-between p-5 cursor-pointer select-none text-slate-300 hover:text-white hover:bg-slate-800/30 transition-colors">
+                          <span className="font-bold flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-cyan-400" />
+                            AI 상세 분석 근거 보기
+                          </span>
+                          <ChevronDown className="w-5 h-5 transition-transform group-open:rotate-180 text-slate-500" />
+                        </summary>
+                        <div className="p-5 border-t border-slate-800/50 space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">인식 가격대 (Price Context)</span>
+                              <p className="text-sm text-slate-300 font-mono">{formatPrice(price_context?.y_axis_min, selectedItem.market)} ~ {formatPrice(price_context?.y_axis_max, selectedItem.market)}</p>
+                            </div>
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                              <span className="text-[10px] text-cyan-500 font-bold uppercase block mb-1">매수/매도 대기 구간 (OB Zone)</span>
+                              <p className="text-sm text-slate-300">{order_block_zone}</p>
+                            </div>
+                          </div>
+                          
+                          {/* Image Preview */}
+                          <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-inner w-full max-w-sm mx-auto">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={selectedItem.imageUrl}
+                              alt="Analyzed Chart"
+                              className="w-full h-auto object-cover opacity-80"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase">원시 분석 시나리오 (Raw Output)</span>
+                            <p className="text-xs text-slate-400 leading-relaxed bg-slate-950 p-4 rounded-xl whitespace-pre-wrap font-mono border border-slate-800">
+                              {selectedItem.planAScenario}
+                              {'\n\n'}
+                              {selectedItem.planBScenario}
+                            </p>
+                          </div>
+                        </div>
+                      </details>
+
                     </div>
-                    <p className="text-xs md:text-sm text-slate-350 leading-relaxed">
-                      {selectedItem.planBScenario}
-                    </p>
+                  );
+                }
+
+                // Fallback for old history without resultJson
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    <div className="md:col-span-5 bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-inner">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={selectedItem.imageUrl} alt="Analyzed Chart" className="w-full h-40 md:h-48 object-cover" />
+                    </div>
+                    <div className="md:col-span-7 bg-slate-950/50 border border-slate-850 p-5 rounded-xl flex flex-col justify-between h-full min-h-[160px]">
+                      <div>
+                        <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">
+                          <Activity className="w-4 h-4" /> 추세 판단 결과
+                        </div>
+                        <p className="text-sm font-semibold text-white leading-relaxed">{selectedItem.trend}</p>
+                      </div>
+                    </div>
+                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                      <div className="bg-slate-950/30 border border-slate-800/80 p-5 rounded-xl flex flex-col justify-between">
+                        <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full w-fit mb-4">플랜 A</span>
+                        <p className="text-sm text-slate-350">{formatDecimalsInString(selectedItem.planAScenario, selectedItem.market)}</p>
+                        {selectedItem.planAEntryPrice && <p className="text-sm font-bold text-white mt-4">{formatDecimalsInString(selectedItem.planAEntryPrice, selectedItem.market)}</p>}
+                      </div>
+                      <div className="bg-slate-950/30 border border-slate-800/80 p-5 rounded-xl flex flex-col justify-between">
+                        <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full w-fit mb-4">플랜 B</span>
+                        <p className="text-sm text-slate-350">{formatDecimalsInString(selectedItem.planBScenario, selectedItem.market)}</p>
+                        {selectedItem.planBEntryPrice && <p className="text-sm font-bold text-white mt-4">{formatDecimalsInString(selectedItem.planBEntryPrice, selectedItem.market)}</p>}
+                      </div>
+                    </div>
                   </div>
-                  {selectedItem.planBEntryPrice && (
-                    <div className="border-t border-slate-900 pt-3 mt-4">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">매도/숏 진입 가격대 (Entry)</span>
-                      <p className="text-xs md:text-sm font-bold text-white mt-0.5">{selectedItem.planBEntryPrice}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             {/* Modal Footer */}

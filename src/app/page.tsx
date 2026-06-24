@@ -1,73 +1,50 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Upload, Sparkles, TrendingUp, 
-  User, Mail, ArrowUpRight, MessageSquare, 
-  Loader2, ShieldAlert, Check, 
-  ChevronDown, ArrowDown, Activity, Shield, Cpu
+  User, MessageSquare, Check, 
+  ChevronDown, ArrowDown, Shield, Cpu
 } from 'lucide-react';
-import { translations, Locale } from '@/lib/translations';
-
-interface AnalysisResult {
-  id: string;
-  imageUrl: string;
-  trend: string;
-  planAScenario: string;
-  planAProbability: number;
-  planBScenario: string;
-  planBProbability: number;
-  createdAt: string;
-}
-
-interface AssignedAgent {
-  name: string;
-  role: string;
-  email: string;
-  contactUrl: string;
-}
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Home() {
-  const [locale, setLocale] = useState<Locale>('ko');
+  const { locale, t, changeLanguage } = useTranslation();
+
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
 
-  // Load language settings on mount
+  // Load language settings and user session on mount
   useEffect(() => {
-    const saved = localStorage.getItem('locale') as Locale;
-    if (saved === 'ko' || saved === 'en') {
-      setLocale(saved);
-    }
-    setIsLoggedIn(document.cookie.includes('session='));
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setUser(data.user);
+            setIsLoggedIn(true);
+          } else {
+            setUser(null);
+            setIsLoggedIn(false);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user:', err);
+      }
+    };
+    fetchUser();
   }, []);
 
-  const t = (key: keyof typeof translations['ko']) => {
-    return translations[locale][key] || translations['ko'][key];
-  };
-
   const handleLanguageChange = () => {
-    const nextLocale = locale === 'ko' ? 'en' : 'ko';
-    setLocale(nextLocale);
-    localStorage.setItem('locale', nextLocale);
+    changeLanguage(locale === 'ko' ? 'en' : 'ko');
   };
-
-  // Client portal state
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [assignedAgent, setAssignedAgent] = useState<AssignedAgent | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Accordion state for FAQ
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [activeFaqCategory, setActiveFaqCategory] = useState<number>(0);
 
   const toggleFaq = (index: number) => {
     if (openFaqIndex === index) {
@@ -77,121 +54,77 @@ export default function Home() {
     }
   };
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type.startsWith('image/')) {
-        setFile(droppedFile);
-        setPreviewUrl(URL.createObjectURL(droppedFile));
-        setError(null);
-      } else {
-        setError(t('errorType'));
-      }
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile));
-      setError(null);
-    }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
-
-  const removeFile = () => {
-    setFile(null);
-    setPreviewUrl(null);
-    setAnalysisResult(null);
-    setAssignedAgent(null);
-  };
-
-  const handleAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !email || !name) {
-      setError(t('errorFields'));
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setError(null);
-    setAnalysisResult(null);
-
-    const formData = new FormData();
-    formData.append('email', email);
-    formData.append('name', name);
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || '차트 분석 중 오류가 발생했습니다.');
-      }
-
-      setAnalysisResult(data.analysis);
-      setAssignedAgent(data.assignedAgent);
-      
-      // Scroll smoothly to results
-      setTimeout(() => {
-        document.getElementById('analysis-results-section')?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message || '네트워크 연결 오류가 발생했습니다.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   const scrollToAnalysis = () => {
     document.getElementById('analysis-tool')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Dynamic FAQ loading matching translations
-  const localizedFaqs = [
+  // Categorized FAQ structure
+  const faqCategories = [
     {
-      q: locale === 'ko' ? '초보자도 쓸 수 있나요?' : 'Can beginners use this?',
-      a: locale === 'ko' 
-        ? '네, 완벽히 트레이딩 입문자를 위해 설계되었습니다. 복잡하고 어려운 금융 지표나 전문 용어를 모르더라도, 차트 사진 한 장만 업로드하면 이해하기 쉬운 직관적인 플랜 A/B 시나리오를 제공해 드립니다.' 
-        : 'Yes, it is designed perfectly for trading beginners. Even if you do not know complex indicators or terminology, simply upload a chart image to receive clear Plan A/B scenarios.'
+      title: locale === 'ko' ? '결제 및 파트너 브로커' : 'Payment & Partner Broker',
+      items: [
+        {
+          q: locale === 'ko' ? '파트너 브로커에서 계좌를 개설하면 정말 평생 무료인가요?' : 'Is the account opened with a partner broker truly free for life?',
+          a: locale === 'ko'
+            ? '네, 맞습니다. 당사와 제휴된 브로커에서 계좌를 개설하고 기본 거래 조건을 충족하시면, 월 $40 상당의 ULTRAPLEX Ai Signal VIP 기능을 추가 비용 없이 평생 이용하실 수 있습니다.'
+            : 'Yes. If you open an account with our partnered broker and meet basic trading conditions, you can use the ULTRAPLEX Ai Signal VIP features (worth $40/month) for free forever.'
+        },
+        {
+          q: locale === 'ko' ? '기존에 사용하던 거래소(브로커) 계좌가 있어도 이용할 수 있나요?' : 'Can I use the service with an existing broker account?',
+          a: locale === 'ko'
+            ? '물론입니다. 베이직(월 $40) 또는 라이프타임(평생 $180) 요금제를 구독하시면, 기존에 이용하시던 거래소나 플랫폼 상관없이 독립적으로 AI 분석 기능을 활용하실 수 있습니다.'
+            : 'Absolutely. By subscribing to the Basic ($40/month) or Lifetime ($180 one‑time) plan, you can use the AI analysis regardless of your existing broker or platform.'
+        },
+        {
+          q: locale === 'ko' ? '결제 후 환불이 가능한가요?' : 'Is a refund possible after payment?',
+          a: locale === 'ko'
+            ? '디지털 서비스 특성상 분석 기능을 사용한 이후에는 원칙적으로 환불이 어렵습니다. 하지만 첫 가입 시 제공되는 무료 분석 횟수를 통해 성능을 먼저 충분히 테스트해 보실 수 있습니다.'
+            : 'Because this is a digital service, refunds are generally not available after the analysis has been used. However, you can test the performance with the free analysis attempts provided at sign‑up.'
+        }
+      ]
     },
     {
-      q: locale === 'ko' ? '진짜 사람이 지원해주나요?' : 'Is there real human support?',
-      a: locale === 'ko'
-        ? '그렇습니다. 차트 분석이 완료되면 시스템이 실시간으로 현지 전문 에이전트를 매핑해 드립니다. 배정된 에이전트와 메신저(카카오톡/WhatsApp)를 통해 1:1로 직접 소통하며 트레이딩 관련 피드백을 받으실 수 있습니다.'
-        : 'Yes, once the analysis is complete, a dedicated local mentor is assigned in real-time. You can chat 1:1 via WhatsApp or KakaoTalk for execution support and feedback.'
+      title: locale === 'ko' ? '기술 및 매매 방식' : 'Technology & Trading Method',
+      items: [
+        {
+          q: locale === 'ko' ? 'AI가 제 계좌에서 자동으로 매매(자동매매/EA)를 진행해 주나요?' : 'Does the AI trade automatically on my account (EA)?',
+          a: locale === 'ko'
+            ? '아닙니다. ULTRAPLEX는 최적의 진입 시점과 시나리오를 제공하는 "초고성능 분석 보조 도구"입니다. 최종 매매는 제공된 시그널을 바탕으로 고객님께서 직접 MT5(MetaTrader 5) 등의 거래 플랫폼에서 진행하셔야 합니다.'
+            : 'No. ULTRAPLEX is a high‑performance analysis assistant that provides optimal entry points and scenarios. You must execute trades manually on platforms like MT5 based on the signals.'
+        },
+        {
+          q: locale === 'ko' ? '하루에 몇 번까지 차트 분석을 요청할 수 있나요?' : 'How many chart analyses can I request per day?',
+          a: locale === 'ko'
+            ? '유료 구독자 및 파트너 플랜 이용자는 분석 횟수에 제한이 없습니다. 데이트레이딩이나 스캘핑을 하시는 분들도 원하시는 만큼 차트를 업로드하고 즉각 분석받을 수 있습니다.'
+            : 'There is no limit for paid subscribers or partner plans. You can upload as many charts as you need.'
+        },
+        {
+          q: locale === 'ko' ? '주식이나 코인 차트도 분석이 가능한가요?' : 'Can stock or crypto charts be analyzed?',
+          a: locale === 'ko'
+            ? '네, 가능합니다. 캔들이 존재하는 차트라면 해외선물, 외환(FX), 크립토, 주식 등 종목과 상관없이 AI가 패턴과 지지/거래를 완벽하게 읽어냅니다.'
+            : 'Yes. Any chart with candlesticks—futures, FX, crypto, stocks—can be analyzed by the AI.'
+        }
+      ]
     },
     {
-      q: locale === 'ko' ? '어떤 종목에서 쓸 수 있나요?' : 'Which markets are supported?',
-      a: locale === 'ko'
-        ? '해외선물(나스닥, 오일 등), 암호화폐(비트코인, 이더리움), 외환(FX 마진 거래) 등 캔들 차트가 존재하는 전 세계 모든 금융 시장에서 완벽하게 작동합니다.'
-        : 'It works perfectly in any financial market where candle charts exist, including Futures (Nasdaq, Crude Oil), Crypto (Bitcoin, Ethereum), and Forex (FX).'
+      title: locale === 'ko' ? '신뢰 및 리스크 관리' : 'Trust & Risk Management',
+      items: [
+        {
+          q: locale === 'ko' ? '100% 수익을 보장하나요? 손실이 날 수도 있나요?' : 'Do you guarantee 100% profit? Can I lose money?',
+          a: locale === 'ko'
+            ? '트레이딩에 100% 확률은 존재하지 않습니다. AI는 과거 데이터와 현재 흐름을 바탕으로 가장 승률이 높은 "Plan A"와 "Plan B" 시나리오를 계산해 줄 뿐입니다. 따라서 AI가 제시하는 "손절선(Stop Loss)"을 반드시 지키는 리스크 관리가 필요합니다.'
+            : 'No strategy can guarantee 100% profit. The AI provides the highest‑probability Plan A and Plan B scenarios based on historical and current data, but you must follow the suggested stop‑loss levels.'
+        },
+        {
+          q: locale === 'ko' ? '전담 에이전트(멘토)는 구체적으로 어떤 도움을 주나요?' : 'What exactly does the dedicated mentor provide?',
+          a: locale === 'ko'
+            ? '차트 분석 결과를 어떻게 해석하고 실전에 적용해야 하는지 기술적인 조언부터, 포지션 진입 시의 심리적 불안감을 잡아주는 마인드 컨트롤까지 1:1로 밀착 케어해 드립니다.'
+            : 'The mentor offers 1:1 support—from technical guidance on interpreting analysis results to mindset coaching that helps you stay calm when entering positions.'
+        }
+      ]
     }
   ];
+
 
   return (
     <div className="min-h-screen bg-[#020617] text-[#94A3B8] font-sans relative overflow-x-hidden scroll-smooth selection:bg-cyan-550 selection:text-white">
@@ -212,7 +145,7 @@ export default function Home() {
             </span>
           </div>
           
-          <nav className="hidden md:flex items-center space-x-10 text-sm font-semibold text-slate-350">
+          <nav className="hidden md:flex items-center space-x-10 text-sm font-semibold text-slate-300">
             <a href="#how-it-works" className="hover:text-cyan-400 transition-colors">{locale === 'ko' ? '작동 방식' : 'How it Works'}</a>
             <a href="#features" className="hover:text-cyan-400 transition-colors">{locale === 'ko' ? '핵심 기능' : 'Features'}</a>
             <a href="#pricing" className="hover:text-cyan-400 transition-colors">{locale === 'ko' ? '요금제' : 'Pricing'}</a>
@@ -227,6 +160,20 @@ export default function Home() {
             >
               <span>{locale === 'ko' ? '🇺🇸 EN' : '🇰🇷 KO'}</span>
             </button>
+
+            {isLoggedIn && user && (
+              <span className="text-xs text-slate-300 font-semibold px-3 py-1.5 rounded-xl bg-slate-900/40 border border-white/5 hidden sm:flex items-center space-x-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>
+                  {locale === 'ko'
+                    ? `${user.name || user.email.split('@')[0]}님 로그인됨`
+                    : `Logged in as ${user.name || user.email.split('@')[0]}`}
+                </span>
+                <span className="text-slate-500 text-[10px] hidden sm:inline font-normal">
+                  ({user.email})
+                </span>
+              </span>
+            )}
 
             {isLoggedIn ? (
               <Link 
@@ -243,13 +190,6 @@ export default function Home() {
                 {locale === 'ko' ? '로그인' : 'Login'}
               </Link>
             )}
-
-            <Link 
-              href="/admin" 
-              className="text-xs text-slate-500 hover:text-slate-350 px-4.5 py-2 rounded-xl border border-white/5 bg-slate-950/40 transition-all font-bold shadow-sm"
-            >
-              {t('dashboard')}
-            </Link>
           </div>
         </div>
       </header>
@@ -306,7 +246,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Step 1 */}
             <div className="glass-card glass-card-hover rounded-2xl p-8 md:p-10 relative overflow-hidden">
-              <div className="absolute top-4 right-6 text-6xl font-black text-white/5 select-none font-mono">01</div>
+              <div className="absolute top-4 right-6 text-6xl font-black text-cyan-400/20 select-none font-mono">01</div>
               <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6">
                 <Upload className="w-5 h-5 text-cyan-400" />
               </div>
@@ -318,7 +258,7 @@ export default function Home() {
 
             {/* Step 2 */}
             <div className="glass-card glass-card-hover rounded-2xl p-8 md:p-10 relative overflow-hidden">
-              <div className="absolute top-4 right-6 text-6xl font-black text-white/5 select-none font-mono">02</div>
+              <div className="absolute top-4 right-6 text-6xl font-black text-cyan-400/20 select-none font-mono">02</div>
               <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6">
                 <Sparkles className="w-5 h-5 text-cyan-400" />
               </div>
@@ -330,7 +270,7 @@ export default function Home() {
 
             {/* Step 3 */}
             <div className="glass-card glass-card-hover rounded-2xl p-8 md:p-10 relative overflow-hidden">
-              <div className="absolute top-4 right-6 text-6xl font-black text-white/5 select-none font-mono">03</div>
+              <div className="absolute top-4 right-6 text-6xl font-black text-cyan-400/20 select-none font-mono">03</div>
               <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6">
                 <TrendingUp className="w-5 h-5 text-cyan-400" />
               </div>
@@ -343,280 +283,70 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3. Interactive Chart Uploader Section (Core Feature Embedded) */}
+      {/* 3. How to Use Video Showcase */}
       <section id="analysis-tool" className="py-24 md:py-32 max-w-7xl mx-auto px-6 scroll-mt-20 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-xs text-cyan-400 font-extrabold tracking-widest uppercase">{t('toolTag')}</span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mt-2 tracking-tight">{t('toolTitle')}</h2>
-          <p className="text-sm sm:text-base text-slate-400 mt-3.5 font-medium">{t('toolSub')}</p>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mt-2 tracking-tight">초간단 3단계 차트 분석</h2>
+          <p className="text-sm sm:text-base text-slate-400 mt-3.5 font-medium">대시보드에서 클릭 몇 번으로 월스트리트급 AI 진단을 실시간으로 받아보세요.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          {/* Left Side: Upload Form */}
-          <div className="lg:col-span-5 glass-card rounded-3xl p-8 md:p-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-cyan-500/40 via-blue-500/40 to-transparent" />
-            
-            <h3 className="text-lg md:text-xl font-bold text-white mb-2 flex items-center">
-              <Sparkles className="w-5 h-5 text-cyan-400 mr-2.5" />
-              {t('formTitle')}
-            </h3>
-            <p className="text-xs md:text-sm text-slate-400 leading-relaxed mb-8">
-              {t('formSub')}
-            </p>
+        <div className="glass-card rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden border border-white/10">
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500" />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+            {/* Left: Image Showcase */}
+            <div className="relative rounded-2xl overflow-hidden bg-slate-950/50 border border-slate-800 shadow-inner group">
+              {/* 고객님이 업로드한 이미지를 public/how-to-use.png 로 저장하면 자동으로 표시됩니다. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src="/how-to-use.png" 
+                alt="AI Dashboard Analysis Showcase" 
+                className="w-full h-auto object-contain hover:scale-[1.02] transition-transform duration-700"
+              />
+              {/* Optional overlay */}
+              <div className="absolute inset-0 border border-white/5 rounded-2xl pointer-events-none" />
+            </div>
 
-            <form onSubmit={handleAnalyze} className="space-y-6">
-              <div className="space-y-5">
+            {/* Right: Steps Description */}
+            <div className="space-y-8">
+              <div className="flex items-start gap-5">
+                <div className="w-10 h-10 shrink-0 bg-slate-800 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-inner">1</div>
                 <div>
-                  <label className="block text-xs md:text-sm font-semibold text-slate-350 mb-2 flex items-center">
-                    <User className="w-4 h-4 mr-1.5 text-slate-500" /> {t('labelName')}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={t('placeholderName')}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full text-xs md:text-sm bg-slate-950/60 border border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 rounded-xl px-5 py-4 text-white placeholder-slate-600 outline-none transition-all duration-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-semibold text-slate-350 mb-2 flex items-center">
-                    <Mail className="w-4 h-4 mr-1.5 text-slate-500" /> {t('labelEmail')}
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder={t('placeholderEmail')}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full text-xs md:text-sm bg-slate-950/60 border border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 rounded-xl px-5 py-4 text-white placeholder-slate-600 outline-none transition-all duration-300"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-slate-350 mb-2.5">
-                  {t('labelChart')}
-                </label>
-                
-                {!previewUrl ? (
-                  <div
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={triggerFileInput}
-                    className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${
-                      dragActive 
-                        ? 'border-cyan-400 bg-cyan-400/5' 
-                        : 'border-white/10 hover:border-cyan-400/40 bg-slate-950/40'
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                    <div className="w-12 h-12 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center mb-4 shadow-inner">
-                      <Upload className="w-5 h-5 text-slate-400" />
-                    </div>
-                    <span className="text-xs md:text-sm font-semibold text-slate-200">
-                      {t('dragText')}
-                    </span>
-                    <span className="text-[10px] md:text-xs text-slate-500 mt-1.5">
-                      {t('dragSub')}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="relative rounded-xl border border-white/10 overflow-hidden bg-slate-955 group shadow-lg">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={previewUrl} 
-                      alt="Uploaded Chart" 
-                      className="w-full h-56 object-cover opacity-85"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent flex items-end p-4">
-                      <span className="text-xs text-white/90 truncate max-w-[80%] font-semibold">
-                        {file?.name}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removeFile}
-                      className="absolute top-3 right-3 bg-red-500/80 hover:bg-red-600 text-white text-xs px-3.5 py-1.5 rounded-lg transition-colors font-bold shadow-md cursor-pointer"
-                    >
-                      {t('btnRemove')}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl p-4 flex items-start space-x-2.5">
-                  <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span className="font-semibold">{error}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isAnalyzing || !file || !name || !email}
-                className={`w-full py-4 rounded-xl text-xs md:text-sm font-extrabold flex items-center justify-center space-x-2 shadow-lg transition-all duration-300 cursor-pointer ${
-                  isAnalyzing || !file || !name || !email
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
-                    : 'bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-cyan-400/10 hover:shadow-cyan-400/30 hover:scale-[1.02] active:scale-[0.98] btn-glow-cyan'
-                }`}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{t('btnAnalyzing')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    <span>{t('btnSubmit')}</span>
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* Right Side: Results Showcase */}
-          <div className="lg:col-span-7 h-full min-h-[450px]">
-            {!analysisResult && !isAnalyzing && (
-              <div className="h-full min-h-[450px] glass-card rounded-3xl flex flex-col items-center justify-center p-10 text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-900/60 border border-white/10 flex items-center justify-center mb-6 shadow-inner">
-                  <Cpu className="w-6 h-6 text-slate-500" />
-                </div>
-                <h3 className="text-white font-bold text-base md:text-lg mb-2">{t('resultWaitTitle')}</h3>
-                <p className="text-xs md:text-sm text-slate-400 max-w-md leading-relaxed">
-                  {t('resultWaitDesc')}
-                </p>
-              </div>
-            )}
-
-            {isAnalyzing && (
-              <div className="h-full min-h-[450px] glass-card rounded-3xl flex flex-col items-center justify-center p-10 text-center relative overflow-hidden shadow-2xl">
-                <div className="absolute inset-0 w-full bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-                <div className="absolute left-0 right-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-[scan_2s_ease-in-out_infinite]" />
-
-                <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mb-6" />
-                <h3 className="text-white font-bold text-base md:text-lg mb-2">{t('resultScanning')}</h3>
-                <div className="space-y-1.5 text-xs md:text-sm">
-                  <p className="text-slate-400 animate-pulse">{t('resultScanDetails')}</p>
-                  <p className="text-slate-500">{t('resultEngine')}</p>
-                </div>
-              </div>
-            )}
-
-            {analysisResult && !isAnalyzing && (
-              <div id="analysis-results-section" className="space-y-6 animate-[fadeIn_0.5s_ease-out]">
-                {/* Trend Summary */}
-                <div className="glass-card rounded-2xl p-6 md:p-8 shadow-xl relative overflow-hidden backdrop-blur-md">
-                  <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-transparent" />
-                  <div className="flex items-center space-x-2.5 text-emerald-400 mb-4">
-                    <Activity className="w-5 h-5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">{t('resultTrendTag')}</span>
-                  </div>
-                  <p className="text-base sm:text-lg md:text-xl font-semibold text-white leading-relaxed">
-                    {analysisResult.trend}
+                  <h4 className="text-white font-bold text-lg mb-2">종목 선택 & 이미지 업로드</h4>
+                  <p className="text-sm text-slate-400 leading-relaxed">
+                    분석할 차트를 캡처하여 붙여넣거나 파일을 업로드하세요. 나스닥, 오일, 비트코인, 외환 등 캔들이 있는 모든 종목이 가능합니다.
                   </p>
                 </div>
-
-                {/* Plans A and B Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* Plan A: Upward */}
-                  <div className="glass-card glass-card-hover rounded-2xl p-6 md:p-8 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-5">
-                        <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-3 py-1.5 rounded-full">
-                          {t('planATitle')}
-                        </span>
-                        <span className="text-2xl font-black text-cyan-400 font-mono">
-                          {analysisResult.planAProbability}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-950 rounded-full h-2 mb-6 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-cyan-400 to-blue-500 h-2 rounded-full" 
-                          style={{ width: `${analysisResult.planAProbability}%` }}
-                        />
-                      </div>
-                      <h4 className="text-sm font-bold text-white mb-2.5">{t('planATarget')}</h4>
-                      <p className="text-xs md:text-sm text-slate-350 leading-relaxed font-medium">
-                        {analysisResult.planAScenario}
-                      </p>
-                    </div>
-                    <div className="mt-8 pt-4 border-t border-white/5 text-[10px] md:text-xs text-slate-500 font-semibold">
-                      {t('planANote')}
-                    </div>
-                  </div>
-
-                  {/* Plan B: Downward */}
-                  <div className="glass-card glass-card-hover rounded-2xl p-6 md:p-8 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-5">
-                        <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-full">
-                          {t('planBTitle')}
-                        </span>
-                        <span className="text-2xl font-black text-rose-400 font-mono">
-                          {analysisResult.planBProbability}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-950 rounded-full h-2 mb-6 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-rose-550 to-rose-400 h-2 rounded-full" 
-                          style={{ width: `${analysisResult.planBProbability}%` }}
-                        />
-                      </div>
-                      <h4 className="text-sm font-bold text-white mb-2.5">{t('planBTarget')}</h4>
-                      <p className="text-xs md:text-sm text-slate-350 leading-relaxed font-medium">
-                        {analysisResult.planBScenario}
-                      </p>
-                    </div>
-                    <div className="mt-8 pt-4 border-t border-white/5 text-[10px] md:text-xs text-slate-500 font-semibold">
-                      {t('planBNote')}
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Assigned Agent info */}
-                {assignedAgent && (
-                  <div className="glass-card border-cyan-500/20 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-cyan-400" />
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-cyan-400 font-extrabold uppercase tracking-wider">
-                          {t('agentTag')}
-                        </div>
-                        <h4 className="text-sm font-bold text-white mt-1">
-                          {assignedAgent.name} {assignedAgent.role === 'LOCAL_AGENT' ? (locale === 'ko' ? ' - 현지 공식 에이전트' : ' - Local Agent') : ` - ${assignedAgent.role}`}
-                        </h4>
-                        <p className="text-xs md:text-sm text-slate-400 mt-1.5 leading-relaxed font-medium">
-                          {t('agentDesc')}
-                        </p>
-                      </div>
-                    </div>
-                    <a
-                      href={assignedAgent.contactUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full md:w-auto bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs md:text-sm font-extrabold px-6 py-4 rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 shadow-md shadow-cyan-400/10 btn-glow-cyan cursor-pointer"
-                    >
-                      <span>{t('agentBtn')}</span>
-                      <ArrowUpRight className="w-4.5 h-4.5" />
-                    </a>
-                  </div>
-                )}
               </div>
-            )}
+              
+              <div className="flex items-start gap-5">
+                <div className="w-10 h-10 shrink-0 bg-slate-800 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-inner">2</div>
+                <div>
+                  <h4 className="text-white font-bold text-lg mb-2">실시간 AI 엔진 구동</h4>
+                  <p className="text-sm text-slate-400 leading-relaxed">
+                    ULTRAPLEX 전용 딥러닝 엔진이 수 초 내에 차트의 패턴, 지지/저항, 추세를 정밀하게 분석합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-5 relative">
+                <div className="w-10 h-10 shrink-0 bg-cyan-500/20 border border-cyan-500/30 rounded-full flex items-center justify-center text-cyan-400 font-bold text-lg shadow-[0_0_15px_rgba(6,182,212,0.3)]">3</div>
+                <div>
+                  <h4 className="text-white font-bold text-lg mb-2">Plan A/B 시나리오 확인</h4>
+                  <p className="text-sm text-slate-400 leading-relaxed mb-6">
+                    가장 확률 높은 두 가지 시나리오와 함께 명확한 <strong className="text-white font-semibold">추천 매매가(진입, 익절, 손절)</strong>를 제공받습니다.
+                  </p>
+                  
+                  <Link 
+                    href="/dashboard" 
+                    className="inline-flex px-6 py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl text-sm font-extrabold transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] cursor-pointer"
+                  >
+                    대시보드에서 체험하기
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -637,7 +367,7 @@ export default function Home() {
                 <Shield className="w-5 h-5 text-cyan-400" />
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{t('feat1Title')}</h3>
-              <p className="text-sm md:text-base text-slate-450 leading-relaxed">
+              <p className="text-sm md:text-base text-slate-400 leading-relaxed">
                 {t('feat1Desc')}
               </p>
             </div>
@@ -648,7 +378,7 @@ export default function Home() {
                 <User className="w-5 h-5 text-cyan-400" />
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{t('feat2Title')}</h3>
-              <p className="text-sm md:text-base text-slate-455 leading-relaxed">
+              <p className="text-sm md:text-base text-slate-400 leading-relaxed">
                 {t('feat2Desc')}
               </p>
             </div>
@@ -659,7 +389,7 @@ export default function Home() {
                 <MessageSquare className="w-5 h-5 text-cyan-400" />
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{t('feat3Title')}</h3>
-              <p className="text-sm md:text-base text-slate-455 leading-relaxed">
+              <p className="text-sm md:text-base text-slate-400 leading-relaxed">
                 {t('feat3Desc')}
               </p>
             </div>
@@ -676,87 +406,83 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-          {/* Plan 1 */}
+          {/* Plan 1: Free */}
           <div className="glass-card glass-card-hover rounded-3xl p-8 md:p-10 flex flex-col justify-between">
             <div>
-              <span className="text-[10px] md:text-xs font-bold text-slate-350 bg-slate-900 border border-white/5 px-3 py-1 rounded-md uppercase tracking-wider">{t('planBasic')}</span>
+              <span className="text-[10px] md:text-xs font-bold text-slate-300 bg-slate-900 border border-white/5 px-3 py-1 rounded-md uppercase tracking-wider">Free Tier</span>
               <div className="mt-5 flex items-baseline text-white">
-                <span className="text-4xl md:text-5xl font-black">{t('planBasicPrice')}</span>
-                <span className="text-sm text-slate-500 ml-1.5 font-medium">{t('planBasicPeriod')}</span>
+                <span className="text-4xl md:text-5xl font-black">$0</span>
+                <span className="text-sm text-slate-500 ml-1.5 font-medium">/ 무료</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planBasicTitle')}</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">기본 플랜</h3>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed mb-8">
-                {t('planBasicDesc')}
+                ULTRAPLEX Ai Signal의 기본 차트 분석을 체험해 보세요.
               </p>
             </div>
             <ul className="space-y-4 pt-6 border-t border-white/10 text-xs md:text-sm text-slate-300 mb-8">
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planBasicFeat1')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planBasicFeat2')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planBasicFeat3')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 하루 1회 AI 차트 분석 무료 체험</li>
             </ul>
             <button 
               onClick={scrollToAnalysis}
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer"
             >
-              {t('planBasicBtn')}
+              무료 체험하기
             </button>
           </div>
 
-          {/* Plan 2 */}
+          {/* Plan 2: Standard */}
           <div className="glass-card glass-card-hover rounded-3xl p-8 md:p-10 flex flex-col justify-between">
             <div>
-              <span className="text-[10px] md:text-xs font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-md uppercase tracking-wider">{t('planLifetime')}</span>
+              <span className="text-[10px] md:text-xs font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-md uppercase tracking-wider">Standard</span>
               <div className="mt-5 flex items-baseline text-white">
-                <span className="text-4xl md:text-5xl font-black">{t('planLifetimePrice')}</span>
-                <span className="text-sm text-slate-500 ml-1.5 font-medium">{t('planLifetimePeriod')}</span>
+                <span className="text-4xl md:text-5xl font-black">$15</span>
+                <span className="text-sm text-slate-500 ml-1.5 font-medium">/ 월</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planLifetimeTitle')}</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">스탠다드 플랜</h3>
               <p className="text-sm md:text-base text-slate-400 leading-relaxed mb-8">
-                {t('planLifetimeDesc')}
+                데일리 트레이딩을 위한 고확률 시나리오 분석.
               </p>
             </div>
             <ul className="space-y-4 pt-6 border-t border-white/10 text-xs md:text-sm text-slate-300 mb-8">
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planLifetimeFeat1')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planLifetimeFeat2')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planLifetimeFeat3')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 하루 10회 고확률 시나리오 분석</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 기본 고객 지원</li>
             </ul>
             <button 
               onClick={scrollToAnalysis}
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer"
             >
-              {t('planLifetimeBtn')}
+              스탠다드 구독하기
             </button>
           </div>
 
-          {/* Plan 3: Highlighted Special Partner Plan (Deep Tech Crimson border / Cyan Glow) */}
+          {/* Plan 3: Premium (Highlighted) */}
           <div className="bg-slate-950/65 backdrop-blur-2xl border-2 border-cyan-500 rounded-3xl p-8 md:p-10 shadow-[0_0_35px_rgba(6,182,212,0.15)] flex flex-col justify-between relative transform lg:-translate-y-4 hover:shadow-[0_0_50px_rgba(6,182,212,0.25)] transition-all duration-300">
             <div className="absolute top-[-14px] right-8 bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg shadow-cyan-400/25">
-              {t('planPartnerHighlight')}
+              가장 인기있는 플랜
             </div>
             
             <div>
-              <span className="text-[10px] md:text-xs font-bold text-cyan-400 bg-cyan-550/15 px-3 py-1 rounded-md uppercase tracking-wider">{t('planPartner')}</span>
+              <span className="text-[10px] md:text-xs font-bold text-cyan-400 bg-cyan-550/15 px-3 py-1 rounded-md uppercase tracking-wider">Premium</span>
               <div className="mt-5 flex items-baseline text-cyan-400">
-                <span className="text-4xl md:text-5xl font-black">{t('planPartnerPrice')}</span>
+                <span className="text-4xl md:text-5xl font-black">$30</span>
+                <span className="text-sm text-cyan-500/70 ml-1.5 font-medium">/ 월</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planPartnerTitle')}</h3>
-              <p className="text-sm md:text-base text-slate-350 leading-relaxed mb-8">
-                {t('planPartnerDesc')}
+              <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">프리미엄 플랜</h3>
+              <p className="text-sm md:text-base text-slate-300 leading-relaxed mb-8">
+                전문 기관급 트레이딩을 위한 무제한 지원과 멘토링.
               </p>
             </div>
             
             <ul className="space-y-4 pt-6 border-t border-cyan-500/20 text-xs md:text-sm text-slate-200 mb-8">
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat1')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat2')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat3')}</li>
-              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> {t('planPartnerFeat4')}</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> 하루 50회 초정밀 SMC 분석</li>
+              <li className="flex items-center"><Check className="w-4.5 h-4.5 text-cyan-400 mr-2.5 flex-shrink-0" /> VIP 1:1 에이전트 밀착 멘토링</li>
             </ul>
             
             <button 
               onClick={scrollToAnalysis}
               className="w-full py-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl text-xs md:text-sm font-extrabold transition-all shadow-md shadow-cyan-400/10 btn-glow-cyan cursor-pointer"
             >
-              {t('planPartnerBtn')}
+              프리미엄 구독하기
             </button>
           </div>
         </div>
@@ -771,21 +497,41 @@ export default function Home() {
             <p className="text-sm sm:text-base text-slate-400 mt-3.5 font-medium">{t('faqSub')}</p>
           </div>
 
+          <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-10">
+            {faqCategories.map((category, catIdx) => (
+              <button
+                key={catIdx}
+                onClick={() => {
+                  setActiveFaqCategory(catIdx);
+                  setOpenFaqIndex(null);
+                }}
+                className={`px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer ${
+                  activeFaqCategory === catIdx 
+                    ? 'bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)] border border-cyan-400' 
+                    : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5 hover:border-white/20 hover:bg-slate-800/80'
+                }`}
+              >
+                {category.title}
+              </button>
+            ))}
+          </div>
+
           <div className="space-y-4">
-            {localizedFaqs.map((faq, index) => {
-              const isOpen = openFaqIndex === index;
+            {faqCategories[activeFaqCategory].items.map((faq, idx) => {
+              const globalIndex = activeFaqCategory * 100 + idx;
+              const isOpen = openFaqIndex === globalIndex;
               return (
                 <div 
-                  key={index} 
+                  key={idx} 
                   className="glass-card rounded-2xl overflow-hidden shadow-md transition-all duration-300"
                 >
                   <button
-                    onClick={() => toggleFaq(index)}
+                    onClick={() => toggleFaq(globalIndex)}
                     className="w-full text-left p-5 md:p-6 flex items-center justify-between text-sm sm:text-base font-bold text-white hover:text-cyan-400 transition-colors cursor-pointer"
                   >
-                    <span>{faq.q}</span>
+                    <span className="pr-4">{faq.q}</span>
                     <ChevronDown 
-                      className={`w-5 h-5 text-slate-500 transition-transform duration-300 ${isOpen ? 'rotate-180 text-cyan-400' : ''}`} 
+                      className={`w-5 h-5 text-slate-500 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180 text-cyan-400' : ''}`} 
                     />
                   </button>
                   
@@ -825,7 +571,7 @@ export default function Home() {
       {/* Floating Agent Contact Button */}
       <div className="fixed bottom-8 right-8 z-50 group">
         <a
-          href={assignedAgent ? assignedAgent.contactUrl : "https://wa.me/60123456789?text=안녕하세요!%20ULTRAPLEX%20Ai%20Signal%20차트%20분석%20상담%20문의드립니다."}
+          href="https://wa.me/60123456789?text=안녕하세요!%20ULTRAPLEX%20Ai%20Signal%20차트%20분석%20상담%20문의드립니다."
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center w-16 h-16 rounded-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-xl shadow-cyan-400/25 hover:scale-105 active:scale-95 transition-transform duration-300 relative btn-glow-cyan cursor-pointer"

@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LineChart, History, User, LogOut, Menu, X, LayoutDashboard } from 'lucide-react';
+import { History, User, LogOut, Menu, X, LayoutDashboard, CreditCard } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SidebarProps {
   user: {
@@ -16,12 +17,13 @@ export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t, isMounted } = useTranslation();
 
   const menuItems = [
-    { name: '대시보드', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'AI 차트 스캔', href: '/dashboard/scan', icon: LineChart },
-    { name: '분석 히스토리', href: '/dashboard/history', icon: History },
-    { name: '내 정보', href: '/dashboard/profile', icon: User },
+    { name: isMounted ? t('sidebarDashboard') : '대시보드', href: '/dashboard', icon: LayoutDashboard },
+    { name: isMounted ? t('sidebarHistory') : '분석 히스토리', href: '/dashboard/history', icon: History },
+    { name: isMounted ? t('sidebarBilling') || '결제 (Billing)' : '결제 (Billing)', href: '/dashboard/billing', icon: CreditCard },
+    { name: isMounted ? t('sidebarProfile') : '내 정보', href: '/dashboard/profile', icon: User },
   ];
 
   const handleLogout = async () => {
@@ -102,7 +104,7 @@ export default function Sidebar({ user }: SidebarProps) {
           <div className="border-t border-slate-900 pt-6 space-y-4">
             {user && (
               <div className="px-2">
-                <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">Signed in as</p>
+                <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">{isMounted ? t('sidebarSignedInAs') : 'Signed in as'}</p>
                 <p className="text-sm font-bold text-white truncate">{user.name}</p>
                 <p className="text-xs text-slate-400 truncate">{user.email}</p>
               </div>
@@ -113,7 +115,7 @@ export default function Sidebar({ user }: SidebarProps) {
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-950/20 transition-all group"
             >
               <LogOut className="w-4 h-4 text-red-500 group-hover:scale-105 transition-all" />
-              로그아웃
+              {isMounted ? t('sidebarSignOut') : '로그아웃'}
             </button>
           </div>
         </div>
@@ -155,24 +157,22 @@ export default function Sidebar({ user }: SidebarProps) {
               </nav>
 
               <div className="border-t border-slate-900 pt-6 space-y-4">
-                {user && (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">Signed in as</p>
-                    <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                  </div>
-                )}
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-950/20 transition-all"
-                >
-                  <LogOut className="w-4 h-4 text-red-500" />
-                  로그아웃
-                </button>
-              </div>
+                  {user && (
+                    <div className="px-2 mt-2">
+                      <p className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase mb-1">{isMounted ? t('sidebarSignedInAs') : 'Signed in as'}</p>
+                      <p className="text-sm font-bold text-white truncate">{user.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-950/20 transition-all mt-4"
+                  >
+                    <LogOut className="w-4 h-4 text-red-500" />
+                    {isMounted ? t('sidebarSignOut') : '로그아웃'}
+                  </button>
+                </div>
             </div>
           </div>
         </div>

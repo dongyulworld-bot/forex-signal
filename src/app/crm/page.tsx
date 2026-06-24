@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, TrendingUp, Layers, Coins, 
+  Users, TrendingUp, Layers, 
   ArrowLeft, RefreshCw, Plus, ShieldCheck, 
   Search, Database, Play, AlertCircle
 } from 'lucide-react';
@@ -23,6 +23,9 @@ interface User {
   email: string;
   name: string;
   agentId: string | null;
+  tier: string;
+  dailyScanCount: number;
+  lastScanDate: string | null;
   createdAt: string;
 }
 
@@ -36,15 +39,6 @@ interface ChartAnalysis {
   planBScenario: string;
   planBProbability: number;
   createdAt: string;
-}
-
-interface Mt5Sync {
-  id: string;
-  userId: string;
-  mt5Login: string;
-  tradingVolume: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  syncedAt: string;
 }
 
 const ROLES = [
@@ -80,7 +74,6 @@ export default function AdminDashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [analyses, setAnalyses] = useState<ChartAnalysis[]>([]);
-  const [mt5Syncs, setMt5Syncs] = useState<Mt5Sync[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,23 +83,22 @@ export default function AdminDashboard() {
   const [newClientEmail, setNewClientEmail] = useState('');
   const [simulationStatus, setSimulationStatus] = useState<string | null>(null);
 
-  const [syncUserId, setSyncUserId] = useState('');
-  const [syncMt5Login, setSyncMt5Login] = useState('');
-  const [syncVolume, setSyncVolume] = useState('10.0');
-  const [syncStatus, setSyncStatus] = useState('APPROVED');
+  const [updateTierUserId, setUpdateTierUserId] = useState('');
+  const [updateTierLevel, setUpdateTierLevel] = useState('FREE');
 
   const [selectedAgentId, setSelectedAgentId] = useState<string>('agent-global');
+  const [superAdminEmailInput, setSuperAdminEmailInput] = useState('');
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/data');
+      const response = await fetch('/api/crm/data');
       const data = await response.json();
       if (data.success) {
         setAgents(data.agents);
         setUsers(data.users);
         setAnalyses(data.analyses);
-        setMt5Syncs(data.mt5Syncs);
+        setSuperAdminEmailInput(data.superAdminEmail || '');
       }
     } catch (e) {
       console.error('Error fetching admin data:', e);
@@ -133,7 +125,7 @@ export default function AdminDashboard() {
     if (!confirm(locale === 'ko' ? '정말로 데이터베이스를 초기화하시겠습니까?' : 'Are you sure you want to reset the database?')) return;
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/data', {
+      const response = await fetch('/api/crm/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'seed' }),
@@ -153,7 +145,7 @@ export default function AdminDashboard() {
     
     setSimulationStatus(locale === 'ko' ? '신규 고객을 등록 및 영업 사원 매핑 중...' : 'Registering new client and auto-routing...');
     try {
-      const response = await fetch('/api/admin/data', {
+      const response = await fetch('/api/crm/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -182,31 +174,58 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleMt5SyncSimulate = async (e: React.FormEvent) => {
+  const handleUpdateTier = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!syncUserId || !syncMt5Login) return;
+    if (!updateTierUserId || !updateTierLevel) return;
 
-    setSimulationStatus(locale === 'ko' ? 'MT5 Webhook 거래량 동기화 호출 중...' : 'Triggering MT5 webhook sync...');
+    setSimulationStatus(locale === 'ko' ? '등급 업데이트 중...' : 'Updating User Tier...');
     try {
-      const response = await fetch('/api/admin/data', {
+      const response = await fetch('/api/crm/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'simulate_mt5',
-          userId: syncUserId,
-          mt5Login: syncMt5Login,
-          tradingVolume: parseFloat(syncVolume),
-          status: syncStatus
+          action: 'update_user_tier',
+          userId: updateTierUserId,
+          tier: updateTierLevel
         }),
       });
       const data = await response.json();
       if (data.success) {
         setSimulationStatus(
           locale === 'ko'
-            ? `동기화 성공! MT5 계정 ${syncMt5Login}의 거래량(${syncVolume} lot) 및 상태(${syncStatus})가 연동되었습니다.`
-            : `Sync Successful! MT5 Account ${syncMt5Login} volume (${syncVolume} lots) and status (${syncStatus}) synchronized.`
+            ? `고객 등급 변경 성공! [${data.user.name}]님의 등급이 ${updateTierLevel}(으)로 변경되었습니다.`
+            : `Success! [${data.user.name}]'s tier updated to ${updateTierLevel}.`
         );
         await fetchData();
+      } else {
+        setSimulationStatus(`Error: ${data.error}`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setSimulationStatus(`Error: ${message}`);
+    }
+  };
+
+  const handleUpdateSuperAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!superAdminEmailInput) return;
+    setSimulationStatus(locale === 'ko' ? '슈퍼 관리자 설정 변경 중...' : 'Updating super admin settings...');
+    try {
+      const response = await fetch('/api/crm/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_super_admin',
+          email: superAdminEmailInput
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSimulationStatus(
+          locale === 'ko'
+            ? `슈퍼 관리자 이메일이 [${data.superAdminEmail}]으로 변경되었습니다. 반영을 위해 로그아웃 후 다시 로그인해 주세요.`
+            : `Super admin email updated to [${data.superAdminEmail}]. Please relog to apply changes.`
+        );
       } else {
         setSimulationStatus(`Error: ${data.error}`);
       }
@@ -249,17 +268,9 @@ export default function AdminDashboard() {
     return activeSubAgentIds.includes(user.agentId);
   });
 
-  // Filter MT5 sync records
-  const filteredSyncs = mt5Syncs.filter(sync => {
-    const user = users.find(u => u.id === sync.userId);
-    if (!user || !user.agentId) return false;
-    if (activeRole === 'GLOBAL_SALES_HEAD') return true;
-    return activeSubAgentIds.includes(user.agentId);
-  });
-
   // Calculate stats
-  const totalVolume = filteredSyncs.reduce((acc, curr) => acc + curr.tradingVolume, 0);
-  const totalApprovedAccounts = filteredSyncs.filter(s => s.status === 'APPROVED').length;
+  const totalScans = filteredUsers.reduce((acc, curr) => acc + (curr.dailyScanCount || 0), 0);
+  const totalPremiumUsers = filteredUsers.filter(u => u.tier === 'PREMIUM').length;
 
   // Localized role selector descriptions
   const localizedRoles = ROLES.map(role => {
@@ -294,10 +305,10 @@ export default function AdminDashboard() {
                 <Database className="w-4 h-4 text-cyan-400" />
               </div>
               <span className="font-extrabold text-sm md:text-base tracking-tight text-white">
-                {t('crmTitle')}
+                CRM Dashboard
               </span>
               <span className="text-[9px] md:text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded font-mono font-bold">
-                Malaysia MT5 Sync
+                Tier Management
               </span>
             </div>
           </div>
@@ -403,13 +414,13 @@ export default function AdminDashboard() {
             <div className="border-t border-white/10 pt-6">
               <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center">
                 <RefreshCw className="w-4.5 h-4.5 text-cyan-400 mr-2.5" />
-                {t('simTitleB')}
+                {locale === 'ko' ? '고객 등급(Tier) 관리' : 'Update Client Tier'}
               </h3>
-              <form onSubmit={handleMt5SyncSimulate} className="space-y-4">
+              <form onSubmit={handleUpdateTier} className="space-y-4">
                 <select
                   required
-                  value={syncUserId}
-                  onChange={(e) => setSyncUserId(e.target.value)}
+                  value={updateTierUserId}
+                  onChange={(e) => setUpdateTierUserId(e.target.value)}
                   className="w-full text-xs md:text-sm bg-slate-950/60 border border-white/10 focus:border-cyan-400 rounded-xl px-4 py-3.5 text-slate-350 outline-none cursor-pointer"
                 >
                   <option value="">{t('simSelectClient')}</option>
@@ -419,36 +430,17 @@ export default function AdminDashboard() {
                     </option>
                   ))}
                 </select>
-                <input
-                  type="text"
-                  placeholder={t('simInputMt5')}
-                  required
-                  value={syncMt5Login}
-                  onChange={(e) => setSyncMt5Login(e.target.value)}
-                  className="w-full text-xs md:text-sm bg-slate-950/60 border border-white/10 focus:border-cyan-400 rounded-xl px-4 py-3.5 text-white placeholder-slate-655 outline-none transition-colors"
-                />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <label className="text-[10px] md:text-xs text-slate-500 block mb-1.5 font-bold uppercase tracking-wider">{t('simLabelVol')}</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={syncVolume}
-                      onChange={(e) => setSyncVolume(e.target.value)}
-                      className="w-full text-xs md:text-sm bg-slate-950 border border-white/10 focus:border-cyan-400 rounded-xl px-4 py-3.5 text-white outline-none transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] md:text-xs text-slate-500 block mb-1.5 font-bold uppercase tracking-wider">{t('simLabelStatus')}</label>
+                    <label className="text-[10px] md:text-xs text-slate-500 block mb-1.5 font-bold uppercase tracking-wider">{locale === 'ko' ? '새로운 등급' : 'New Tier'}</label>
                     <select
-                      value={syncStatus}
-                      onChange={(e) => setSyncStatus(e.target.value)}
+                      value={updateTierLevel}
+                      onChange={(e) => setUpdateTierLevel(e.target.value)}
                       className="w-full text-xs md:text-sm bg-slate-950 border border-white/10 focus:border-cyan-400 rounded-xl px-4 py-3.5 text-slate-350 outline-none cursor-pointer"
                     >
-                      <option value="APPROVED" className="bg-slate-950 text-white">APPROVED</option>
-                      <option value="PENDING" className="bg-slate-950 text-white">PENDING</option>
-                      <option value="REJECTED" className="bg-slate-950 text-white">REJECTED</option>
+                      <option value="FREE" className="bg-slate-950 text-white">FREE (1 AI Scan/day)</option>
+                      <option value="STANDARD" className="bg-slate-950 text-white">STANDARD (10 AI Scans/day)</option>
+                      <option value="PREMIUM" className="bg-slate-950 text-white">PREMIUM (50 AI Scans/day)</option>
                     </select>
                   </div>
                 </div>
@@ -457,7 +449,36 @@ export default function AdminDashboard() {
                   className="w-full py-3.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 rounded-xl text-xs md:text-sm font-extrabold flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-cyan-400/10 btn-glow-cyan cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                  <span>{t('simBtnB')}</span>
+                  <span>{locale === 'ko' ? '등급 변경 적용' : 'Apply Tier'}</span>
+                </button>
+              </form>
+            </div>
+
+            <div className="border-t border-white/10 pt-6">
+              <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center">
+                <ShieldCheck className="w-4.5 h-4.5 text-cyan-400 mr-2.5" />
+                {locale === 'ko' ? '슈퍼 관리자(Super Admin) 설정' : 'Super Admin Settings'}
+              </h3>
+              <form onSubmit={handleUpdateSuperAdmin} className="space-y-4">
+                <div>
+                  <label className="text-[10px] md:text-xs text-slate-500 block mb-1.5 font-bold uppercase tracking-wider">
+                    {locale === 'ko' ? '지정할 이메일 주소' : 'Designated Email Address'}
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="email@example.com"
+                    value={superAdminEmailInput}
+                    onChange={(e) => setSuperAdminEmailInput(e.target.value)}
+                    className="w-full text-xs md:text-sm bg-slate-950/60 border border-white/10 focus:border-cyan-400 rounded-xl px-4 py-3.5 text-white placeholder-slate-655 outline-none transition-colors"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 border border-white/10 hover:border-white/20 text-white rounded-xl text-xs md:text-sm font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-cyan-400" />
+                  <span>{locale === 'ko' ? '슈퍼 관리자 지정' : 'Set Super Admin'}</span>
                 </button>
               </form>
             </div>
@@ -501,18 +522,18 @@ export default function AdminDashboard() {
               </span>
             </div>
 
-            {/* Stat 3: MT5 Lots */}
+            {/* Stat 3: Total AI Scans */}
             <div className="glass-card rounded-2xl p-5 shadow-xl relative overflow-hidden backdrop-blur-md transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">{t('statVolume')}</span>
-                <Coins className="w-4 h-4 text-emerald-400" />
+                <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider">{locale === 'ko' ? '오늘 전체 분석량' : 'Total Daily Scans'}</span>
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
               </div>
               <span className="text-2xl md:text-3xl font-extrabold text-emerald-400 mt-3 block">
-                {totalVolume.toFixed(2)}
-                <span className="text-xs font-normal text-slate-500 ml-1">Lots</span>
+                {totalScans}
+                <span className="text-xs font-normal text-slate-500 ml-1">Scans</span>
               </span>
               <span className="text-[10px] text-slate-500 mt-1.5 block font-bold uppercase tracking-wider">
-                {t('statApproved')} {totalApprovedAccounts}{locale === 'ko' ? '개' : ''}
+                {locale === 'ko' ? '프리미엄 구독자' : 'Premium Users'}: {totalPremiumUsers}{locale === 'ko' ? '명' : ''}
               </span>
             </div>
 
@@ -573,10 +594,9 @@ export default function AdminDashboard() {
                     <tr className="bg-slate-950/40 text-slate-350 border-b border-white/10">
                       <th className="p-5 font-bold uppercase tracking-wider">{t('tableThClient')}</th>
                       <th className="p-5 font-bold uppercase tracking-wider">{t('tableThAgent')}</th>
-                      <th className="p-5 font-bold uppercase tracking-wider">{t('tableThAccount')}</th>
-                      <th className="p-5 font-bold uppercase tracking-wider">{t('tableThVolume')}</th>
-                      <th className="p-5 font-bold uppercase tracking-wider">{t('tableThStatus')}</th>
-                      <th className="p-5 font-bold uppercase tracking-wider text-right">{t('tableThCount')}</th>
+                      <th className="p-5 font-bold uppercase tracking-wider">Tier</th>
+                      <th className="p-5 font-bold uppercase tracking-wider">Daily Scans</th>
+                      <th className="p-5 font-bold uppercase tracking-wider text-right">{t('tableThCount')} (Total)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -587,7 +607,6 @@ export default function AdminDashboard() {
                       )
                       .map(user => {
                         const agent = agents.find(a => a.id === user.agentId);
-                        const sync = filteredSyncs.find(s => s.userId === user.id);
                         const userAnalyses = filteredAnalyses.filter(a => a.userId === user.id);
 
                         return (
@@ -609,25 +628,18 @@ export default function AdminDashboard() {
                               )}
                             </td>
                             <td className="p-5 font-mono text-slate-400 font-semibold">
-                              {sync ? sync.mt5Login : (locale === 'ko' ? '미연동' : 'Offline')}
+                              <span className={`px-2.5 py-1 rounded-md text-[10px] font-black tracking-wider border ${
+                                user.tier === 'PREMIUM' 
+                                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.3)]' 
+                                  : user.tier === 'STANDARD'
+                                  ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
+                                  : 'bg-slate-800 border-slate-700 text-slate-300'
+                              }`}>
+                                {user.tier || 'FREE'}
+                              </span>
                             </td>
                             <td className="p-5 font-mono font-black text-slate-200">
-                              {sync ? `${sync.tradingVolume.toFixed(2)} Lot` : '0.00 Lot'}
-                            </td>
-                            <td className="p-5">
-                              {sync ? (
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-wider ${
-                                  sync.status === 'APPROVED' 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                    : sync.status === 'PENDING'
-                                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                }`}>
-                                  {sync.status}
-                                </span>
-                              ) : (
-                                <span className="text-slate-655 font-bold">-</span>
-                              )}
+                              {user.dailyScanCount || 0} Scans
                             </td>
                             <td className="p-5 text-right">
                               <span className="bg-slate-950/80 text-slate-300 border border-white/10 px-3 py-1.5 rounded-lg font-bold font-mono">

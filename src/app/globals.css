@@ -56,3 +56,28 @@ body {
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
+/* Scanning Theater Animations */
+@keyframes laser-scan {
+  0% { top: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  45% { top: 100%; opacity: 1; }
+  50% { top: 100%; opacity: 0; }
+  55% { top: 100%; opacity: 0; }
+  60% { opacity: 1; }
+  95% { top: 0%; opacity: 1; }
+  100% { top: 0%; opacity: 0; }
+}
+
+.animate-laser-scan {
+  animation: laser-scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes scan-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+.animate-scan-pulse {
+  animation: scan-pulse 1.5s ease-in-out infinite;
+}
+

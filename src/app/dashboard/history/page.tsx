@@ -34,7 +34,25 @@ export default async function HistoryPage() {
     planBEntryPrice: h.planBEntryPrice,
     status: h.status,
     createdAt: h.createdAt,
+    resultJson: h.resultJson,
   }));
+
+  // Calculate today's usage and limit
+  const users = await dbService.getUsers();
+  const user = users.find(u => u.id === sessionPayload.userId);
+  
+  const TIER_LIMITS: Record<string, number> = {
+    FREE: 1,
+    STANDARD: 10,
+    PREMIUM: 50,
+    LIFETIME: 9999,
+    PARTNER: 9999
+  };
+  
+  const limit = user ? (TIER_LIMITS[user.tier || 'FREE'] || 1) : 1;
+  const today = new Date().toISOString().split('T')[0];
+  const isSameDay = user?.lastScanDate && user.lastScanDate.startsWith(today);
+  const todayScanCount = isSameDay ? (user?.dailyScanCount || 0) : 0;
 
   return (
     <div className="space-y-8">
@@ -43,7 +61,11 @@ export default async function HistoryPage() {
         <p className="text-slate-400 mt-2">과거에 스캔한 차트 분석 기록을 보관하고, 당시 AI가 수립한 양방향 시나리오를 즉시 확인하세요.</p>
       </div>
 
-      <HistoryClient initialHistories={serializedHistories} />
+      <HistoryClient 
+        initialHistories={serializedHistories} 
+        todayScanCount={todayScanCount}
+        dailyLimit={limit}
+      />
     </div>
   );
 }

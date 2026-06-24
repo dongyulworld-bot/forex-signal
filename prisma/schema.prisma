@@ -31,17 +31,20 @@ model Agent {
 }
 
 model User {
-  id                String            @id @default(uuid())
-  email             String            @unique
-  name              String
-  password          String?
-  agentId           String?
-  agent             Agent?            @relation("AgentClients", fields: [agentId], references: [id], onDelete: SetNull)
-  chartAnalyses     ChartAnalysis[]
-  analysisHistories AnalysisHistory[]
-  mt5Syncs          Mt5Sync[]
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  name                String
+  password            String?
+  agentId             String?
+  agent               Agent?               @relation("AgentClients", fields: [agentId], references: [id], onDelete: SetNull)
+  tier                String               @default("FREE") // "FREE" | "STANDARD" | "PREMIUM"
+  dailyScanCount      Int                  @default(0)
+  lastScanDate        DateTime?
+  chartAnalyses       ChartAnalysis[]
+  analysisHistories   AnalysisHistory[]
+  paymentTransactions PaymentTransaction[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model ChartAnalysis {
@@ -76,14 +79,14 @@ model AnalysisHistory {
   createdAt        DateTime @default(now())
 }
 
-
-model Mt5Sync {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mt5Login      String   @unique
-  tradingVolume Float    @default(0.0)
-  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  syncedAt      DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+model PaymentTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planName  String
+  amount    Float
+  txId      String   @unique
+  status    String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
