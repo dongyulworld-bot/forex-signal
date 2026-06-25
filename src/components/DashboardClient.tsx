@@ -617,82 +617,85 @@ export default function DashboardClient({ initialHistories, todayScanCount, dail
             </div>
           )}
 
-          {/* STRATEGY THESIS */}
+          {/* STRATEGY THESIS & MULTI-TIMEFRAME FLOW SIDE-BY-SIDE */}
           {analysisResult && (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl animate-[slideIn_0.4s_ease-out] overflow-hidden">
-              <button
-                onClick={() => setShowThesisExpanded(!showThesisExpanded)}
-                className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-800/20 transition-colors"
-                aria-expanded={showThesisExpanded}
-              >
-                <h3 className="text-slate-500 text-xs font-black tracking-[0.2em]">STRATEGY THESIS</h3>
-                {showThesisExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
-              </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+              {/* STRATEGY THESIS */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl animate-[slideIn_0.4s_ease-out] overflow-hidden">
+                <button
+                  onClick={() => setShowThesisExpanded(!showThesisExpanded)}
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-800/20 transition-colors"
+                  aria-expanded={showThesisExpanded}
+                >
+                  <h3 className="text-slate-500 text-xs font-black tracking-[0.2em]">STRATEGY THESIS</h3>
+                  {showThesisExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                </button>
 
-              {showThesisExpanded && (
-                <div className="px-6 pb-6 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className={`px-3 py-1 text-xs font-black tracking-widest rounded-md ${
-                      analysisResult.thesis?.action?.includes('BUY') ? 'bg-green-500 text-black' :
-                      analysisResult.thesis?.action?.includes('SELL') ? 'bg-red-500 text-white' :
-                      'bg-slate-600 text-white'
-                    }`}>
-                      {analysisResult.thesis?.action || 'WAIT'}
+                {showThesisExpanded && (
+                  <div className="px-6 pb-6 space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className={`px-3 py-1 text-xs font-black tracking-widest rounded-md ${
+                        analysisResult.thesis?.action?.includes('BUY') ? 'bg-green-500 text-black' :
+                        analysisResult.thesis?.action?.includes('SELL') ? 'bg-red-500 text-white' :
+                        'bg-slate-600 text-white'
+                      }`}>
+                        {analysisResult.thesis?.action || 'WAIT'}
+                      </div>
+                      <div className="text-slate-400 text-xs font-mono">{cleanSymbol(symbol)} · {analysisResult.trend || 'NEUTRAL'} BIAS</div>
                     </div>
-                    <div className="text-slate-400 text-xs font-mono">{cleanSymbol(symbol)} · {analysisResult.trend || 'NEUTRAL'} BIAS</div>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                      {analysisResult.thesis?.reasoning || '분석 중입니다...'}
+                    </p>
+
+                    {analysisResult.thesis?.reasoning_list && Array.isArray(analysisResult.thesis.reasoning_list) && analysisResult.thesis.reasoning_list.length > 0 && (
+                      <div className="mt-3 pt-4 border-t border-slate-800 space-y-2.5">
+                        <span className="text-slate-500 text-[10px] font-black tracking-widest block uppercase">TECHNICAL EVIDENCE</span>
+                        {analysisResult.thesis.reasoning_list.map((reason: string, idx: number) => (
+                          <div key={idx} className="flex gap-2.5 items-start text-xs text-slate-300">
+                            <span className="flex items-center justify-center w-5 h-5 rounded bg-cyan-950 border border-cyan-800/50 text-cyan-400 font-bold text-xs shrink-0 mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <span className="leading-relaxed">{reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-slate-300 text-sm leading-relaxed">
-                    {analysisResult.thesis?.reasoning || '분석 중입니다...'}
-                  </p>
+                )}
+              </div>
 
-                  {analysisResult.thesis?.reasoning_list && Array.isArray(analysisResult.thesis.reasoning_list) && analysisResult.thesis.reasoning_list.length > 0 && (
-                    <div className="mt-3 pt-4 border-t border-slate-800 space-y-2.5">
-                      <span className="text-slate-500 text-[10px] font-black tracking-widest block uppercase">TECHNICAL EVIDENCE</span>
-                      {analysisResult.thesis.reasoning_list.map((reason: string, idx: number) => (
-                        <div key={idx} className="flex gap-2.5 items-start text-xs text-slate-300">
-                          <span className="flex items-center justify-center w-5 h-5 rounded bg-cyan-950 border border-cyan-800/50 text-cyan-400 font-bold text-xs shrink-0 mt-0.5">
-                            {idx + 1}
-                          </span>
-                          <span className="leading-relaxed">{reason}</span>
+              {/* Multi-Timeframe Analysis */}
+              {analysisResult.multi_timeframe_analysis && typeof analysisResult.multi_timeframe_analysis === 'object' && !Array.isArray(analysisResult.multi_timeframe_analysis) && (
+                <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl animate-[slideIn_0.4s_ease-out] space-y-4">
+                  <h3 className="text-slate-500 text-xs font-black tracking-[0.2em]">
+                    MULTI-TIMEFRAME FLOW
+                    <Tooltip text="현재 선택 타임프레임 주변의 다른 봉 기준 추세 방향을 분석합니다." />
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Object.entries(analysisResult.multi_timeframe_analysis as Record<string, { trend?: string; flow_analysis?: string } | null | undefined>).map(([tf, tfData]) => {
+                      const isBullish = tfData?.trend === 'BULLISH';
+                      const isBearish = tfData?.trend === 'BEARISH';
+                      return (
+                        <div key={tf} className="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white font-bold text-xs">
+                              {tf === '1d' ? '일봉 (1D)' : tf === '1h' ? '1H' : tf === '30m' ? '30M' : '5M'}
+                            </span>
+                            <span className={`text-[10px] font-black tracking-widest px-2 py-0.5 rounded ${
+                              isBullish ? 'bg-green-500/20 text-green-400' :
+                              isBearish ? 'bg-red-500/20 text-red-400' :
+                              'bg-slate-500/20 text-slate-400'
+                            }`}>
+                              {tfData?.trend || 'NEUTRAL'}
+                            </span>
+                          </div>
+                          <p className="text-slate-400 text-xs leading-relaxed">{tfData?.flow_analysis || '데이터 없음'}</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Multi-Timeframe Analysis */}
-          {analysisResult && analysisResult.multi_timeframe_analysis && typeof analysisResult.multi_timeframe_analysis === 'object' && !Array.isArray(analysisResult.multi_timeframe_analysis) && (
-            <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl animate-[slideIn_0.4s_ease-out] space-y-4">
-              <h3 className="text-slate-500 text-xs font-black tracking-[0.2em]">
-                MULTI-TIMEFRAME FLOW
-                <Tooltip text="현재 선택 타임프레임 주변의 다른 봉 기준 추세 방향을 분석합니다." />
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {Object.entries(analysisResult.multi_timeframe_analysis as Record<string, { trend?: string; flow_analysis?: string } | null | undefined>).map(([tf, tfData]) => {
-                  const isBullish = tfData?.trend === 'BULLISH';
-                  const isBearish = tfData?.trend === 'BEARISH';
-                  return (
-                    <div key={tf} className="bg-slate-950/80 border border-slate-800/80 p-4 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-white font-bold text-xs">
-                          {tf === '1d' ? '일봉 (1D)' : tf === '1h' ? '1H' : tf === '30m' ? '30M' : '5M'}
-                        </span>
-                        <span className={`text-[10px] font-black tracking-widest px-2 py-0.5 rounded ${
-                          isBullish ? 'bg-green-500/20 text-green-400' :
-                          isBearish ? 'bg-red-500/20 text-red-400' :
-                          'bg-slate-500/20 text-slate-400'
-                        }`}>
-                          {tfData?.trend || 'NEUTRAL'}
-                        </span>
-                      </div>
-                      <p className="text-slate-400 text-xs leading-relaxed">{tfData?.flow_analysis || '데이터 없음'}</p>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
         </div>

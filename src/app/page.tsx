@@ -123,14 +123,14 @@ export default function Home() {
         {
           q: locale === 'ko' ? '파트너 브로커에서 계좌를 개설하면 정말 평생 무료인가요?' : 'Is the account opened with a partner broker truly free for life?',
           a: locale === 'ko'
-            ? '네, 맞습니다. 당사와 제휴된 브로커에서 계좌를 개설하고 기본 거래 조건을 충족하시면, 월 $40 상당의 ULTRAPLEX Ai Signal VIP 기능을 추가 비용 없이 평생 이용하실 수 있습니다.'
-            : 'Yes. If you open an account with our partnered broker and meet basic trading conditions, you can use the ULTRAPLEX Ai Signal VIP features (worth $40/month) for free forever.'
+            ? '네, 맞습니다. 당사와 제휴된 브로커에서 계좌를 개설하고 기본 거래 조건을 충족하시면, 월 $20 상당의 ULTRAPLEX Ai Signal 프로 기능을 추가 비용 없이 평생 이용하실 수 있습니다.'
+            : 'Yes. If you open an account with our partnered broker and meet basic trading conditions, you can use the ULTRAPLEX Ai Signal Pro features (worth $20/month) for free forever.'
         },
         {
           q: locale === 'ko' ? '기존에 사용하던 거래소(브로커) 계좌가 있어도 이용할 수 있나요?' : 'Can I use the service with an existing broker account?',
           a: locale === 'ko'
-            ? '물론입니다. 베이직(월 $40) 또는 라이프타임(평생 $180) 요금제를 구독하시면, 기존에 이용하시던 거래소나 플랫폼 상관없이 독립적으로 AI 분석 기능을 활용하실 수 있습니다.'
-            : 'Absolutely. By subscribing to the Basic ($40/month) or Lifetime ($180 one‑time) plan, you can use the AI analysis regardless of your existing broker or platform.'
+            ? '물론입니다. 스탠다드(월 $10) 또는 프로(월 $20) 요금제를 구독하시면, 기존에 이용하시던 거래소나 플랫폼 상관없이 독립적으로 AI 분석 기능을 활용하실 수 있습니다.'
+            : 'Absolutely. By subscribing to the Standard ($10/month) or Pro ($20/month) plan, you can use the AI analysis regardless of your existing broker or platform.'
         },
         {
           q: locale === 'ko' ? '결제 후 환불이 가능한가요?' : 'Is a refund possible after payment?',
@@ -603,6 +603,7 @@ export default function Home() {
               <span className="text-[10px] md:text-xs font-bold text-cyan-400 bg-cyan-550/15 px-3 py-1 rounded-md uppercase tracking-wider">{t('planPartner')}</span>
               <div className="mt-5 flex items-baseline text-cyan-400">
                 <span className="text-4xl md:text-5xl font-black">{t('planPartnerPrice')}</span>
+                <span className="text-sm text-cyan-500/70 ml-1.5 font-medium">{t('planPartnerPeriod')}</span>
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-white mt-5 mb-2">{t('planPartnerTitle')}</h3>
               <p className="text-sm md:text-base text-slate-350 leading-relaxed mb-8">

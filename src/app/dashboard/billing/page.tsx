@@ -16,27 +16,29 @@ type Plan = {
 
 const plans: Plan[] = [
   {
-    id: 'basic',
-    name: 'Basic Plan',
-    price: 40,
-    description: 'Perfect for getting started with Ai Signal',
+    id: 'standard',
+    name: 'Standard Plan',
+    price: 10,
+    description: 'Get 10 daily precision AI scans at a reasonable cost.',
     features: [
-      'Real-time AI Trading Signals',
-      'Basic Chart Analysis',
+      '10 Daily AI Chart Precision Scans',
+      'Real-time OANDA Price Feed Integration',
+      'Unlimited Web Dashboard Access',
       'Standard Support',
       'Valid for 1 Month'
     ]
   },
   {
-    id: 'lifetime',
-    name: 'Lifetime Plan',
-    price: 180,
-    description: 'Ultimate access with no recurring fees',
+    id: 'pro',
+    name: 'Pro Plan',
+    price: 20,
+    description: '50 daily precision AI scans and VIP benefits.',
     features: [
-      'Everything in Basic Plan',
-      'Advanced Trend Analysis',
-      'Priority 24/7 Support',
-      'Lifetime Access'
+      '50 Daily High-Precision AI Scans',
+      '1:1 VIP Dedicated Mentor Support',
+      'Real-time Market Risk Alerts',
+      'Highest Priority AI Scan Queue',
+      'Valid for 1 Month'
     ]
   }
 ];
